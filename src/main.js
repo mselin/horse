@@ -114,7 +114,10 @@ const state = {
   autoCondition: !params.has('dirt') && !params.has('sweat'),
   hairDetail: 1,
   veins: 0.5,
+  // slow motion: simulated time runs this many times slower than real time
+  slowmo: Math.min(16, Math.max(1, +(params.get('slow') ?? 1) || 1)),
 };
+const SLOWMO_STEPS = [1, 2, 4, 8, 16];
 
 const horse = new Horse(baked, { coat: state.coat });
 scene.add(horse.group);
@@ -255,6 +258,12 @@ addEventListener('keydown', (e) => {
     cine.cut = true;
     gui.controllersRecursive().forEach((c) => c.updateDisplay());
   }
+  if (e.code === 'KeyM') {
+    // cycle 1×, 2×, 4×, 8×, 16× slow motion
+    const i = SLOWMO_STEPS.findIndex((s) => s > state.slowmo + 1e-6);
+    state.slowmo = i < 0 ? 1 : SLOWMO_STEPS[i];
+    gui.controllersRecursive().forEach((c) => c.updateDisplay());
+  }
   if (e.code === 'KeyH') {
     document.getElementById('hud').classList.toggle('hidden');
     gui.show(gui._hidden);
@@ -289,6 +298,7 @@ fMove
     gui.controllersRecursive().forEach((c) => c.updateDisplay());
   });
 fMove.add(state, 'camera', ['orbit', 'cinematic', 'side']).name('Camera').onChange(() => (cine.cut = true));
+fMove.add(state, 'slowmo', 1, 16, 0.5).name('Slow motion ×');
 fMove.add(state, 'sound').name('Hoofbeats').onChange((v) => audio.enable(v));
 const fCoat = gui.addFolder('Coat & markings');
 fCoat
@@ -397,9 +407,13 @@ hud.classList.remove('hidden');
 window.__ready = true;
 window.__app = { horse, loco, hair, world, camera, state, renderer, scene, composer };
 
+const hudSlow = document.getElementById('hudSlow');
+
 function frame() {
   clock.update();
-  const dt = Math.min(clock.getDelta(), 1 / 20);
+  // everything simulated runs on slowed time; the film grain keeps real time
+  const dt = Math.min(clock.getDelta(), 1 / 20) / state.slowmo;
+  audio.slow = state.slowmo;
   if (state.demo) updateDemo(dt);
   let steer = 0;
   if (keys.has('KeyA') || keys.has('ArrowLeft')) steer += 1;
@@ -419,6 +433,7 @@ function frame() {
 
   hudGait.textContent = loco.standing ? 'Standing' : loco.gaitName;
   hudSpeed.textContent = `${(loco.speed * 3.6).toFixed(0)} km/h`;
+  hudSlow.textContent = state.slowmo > 1 ? `Slow motion ${+state.slowmo.toFixed(1)}×` : '';
 
   composer.render();
   if (params.has('capture')) return; // frames are driven by window.__captureStep
