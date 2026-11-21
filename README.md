@@ -43,6 +43,7 @@ the sculpt changes.
 | A / D (← / →) | Steer |
 | Space | Halt |
 | M | Slow motion: 1×, 2×, 4×, 8×, 16× |
+| F | Performance stats |
 | C | Camera: orbit / cinematic / side tracking |
 | H | Hide UI |
 
@@ -53,8 +54,15 @@ rather than played back, so slow motion stays smooth at any factor: 8× is
 like 480 fps footage, 16× like the high-speed cameras used for racing replays,
 and it shows hoof contact and limb folding clearly.
 
+The performance overlay (F, or the panel's checkbox; off by default) shows,
+in the manner of MangoHud: frame rate and 1% low, frame time with a graph,
+JavaScript and GPU time per frame (GPU time where the browser offers timer
+queries), the GPU's name, render resolution and quality, draw calls,
+triangles, shader programs, geometries and textures, JavaScript memory
+(Chromium), and the horse's vertex, hair-strand and grass counts.
+
 URL options: `?quality=low|medium|high`, `?coat=bay`, `?cam=cinematic`, `?nodemo`, `?slow=1..16`,
-`?dirt=0..1`, `?sweat=0..1`. Close-up camera shots: `?cam=cinematic&shot=5` (eye),
+`?dirt=0..1`, `?sweat=0..1`, `?stats`. Close-up camera shots: `?cam=cinematic&shot=5` (eye),
 `6` (shoulder), `7` (fore legs), `8` (hindquarters), `9` (muzzle). The orbit
 camera zooms in to 30 cm.
 

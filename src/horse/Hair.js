@@ -407,7 +407,9 @@ export class Hair {
     // --- render strands ---
     this.material = this.createMaterial(color);
     this.meshes = [];
+    this.strandCount = 0;
     const makeMesh = (g, opts) => {
+      this.strandCount += opts.count;
       const geo = buildStrands(g, opts);
       const tex = new THREE.DataTexture(new Float32Array(g.N * g.G * 2 * 4), g.N, g.G * 2, THREE.RGBAFormat, THREE.FloatType);
       tex.needsUpdate = true;
