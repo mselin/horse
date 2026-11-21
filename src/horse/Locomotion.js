@@ -414,7 +414,11 @@ export class Locomotion {
     }
     // the head is stabilised: it counter-rotates most of the neck and trunk pitch
     const comp = 0.62 - 0.32 * clamp((v - 5) / 8, 0, 1);
-    const headT = -(neckSum + pitch) * comp + nod * 0.25 + 0.1 * clamp((v - 6) / 8, 0, 1);
+    // The head cancels the neck's static lowering in full (only the stride's
+    // nod is partly let through), and opens at speed: a galloping horse
+    // stretches its neck long and low with the nose pushed out in front.
+    const open = 0.3 * clamp((v - 6) / 8, 0, 1);
+    const headT = -(neckSum + pitch) * comp - carriage * (1 - comp) + nod * 0.25 + open;
     const head = S.head.step(headT, dt, 3.2, 0.55);
     _e.set(0, yawTarget * 0.1, head, 'YZX');
     B.head.quaternion.setFromEuler(_e);

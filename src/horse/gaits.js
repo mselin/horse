@@ -108,7 +108,7 @@ export const GAITS = {
     speed: [9.0, 17.0],
     freq: (v) => 1.85 + 0.03 * v, // ~2.25 Hz at 13 m/s
     duty: { F: 0.3, H: 0.3 },
-    dutyFast: { F: 0.21, H: 0.22 },
+    dutyFast: { F: 0.23, H: 0.24 },
     phase: { LH: 0.0, RH: 0.12, LF: 0.33, RF: 0.46 },
     swingH: { F: 0.32, H: 0.18 },
     carpusFlex: 1.75,
@@ -121,17 +121,17 @@ export const GAITS = {
     bob: 0.05,
     pitch: 0.055,
     roll: 0.015,
-    nod: 0.16,
-    neckCarriage: -0.45,
+    nod: 0.2,
+    neckCarriage: -0.62,
     lumbar: 0.13,
-    bodyDrop: 0.09,
+    bodyDrop: 0.12,
     tailLift: 0.6,
     surge: 0.045,
     surgeHarm: 1,
-    // as the canter, moved earlier with the leading fore's earlier lift-off
-    // (by analogy: no gallop footage was measured)
-    rockPeak: 0.46,
-    nodPeak: 0.42,
+    // measured from a side-on gallop (real time, 2.27 strides/s): forehand
+    // highest and head lowest at ~0.8 of the stride
+    rockPeak: 0.58,
+    nodPeak: 0.5,
     stanceShift: { F: 0.1, H: 0.18 },
   },
 };

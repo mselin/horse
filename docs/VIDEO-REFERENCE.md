@@ -62,6 +62,35 @@ The old canter spent about 40% of every stride in the air with short,
 stabbing stances. It looked floaty and bouncy next to the real horse, and its
 rocking ran backwards.
 
+## Gallop: bay, side-on, long lens over red desert (`wha-00m57s…`)
+
+The bay is tracked by darkness, because its coat colour matches the sand;
+the silhouette's upper part keeps its own shadow out. Identical gathered
+poses come every 11 frames: **2.27 strides per second, real time**, a
+typical gallop rate.
+
+| | Footage | Before | After (13.5 m/s) |
+| --- | --- | --- | --- |
+| Stride frequency | 2.27 Hz | 2.25 Hz | 2.25 Hz |
+| Suspension | one, legs gathered under the body; short, ≈ 0.15–0.25 of the stride (11 frames a stride limit the precision) | 0.35 | 0.32 (0.25 at 10 m/s) |
+| Duty factor | — (published at race speed: ≈ 0.2–0.25) | 0.19–0.20 | 0.22–0.23 (0.28–0.29 at 10 m/s) |
+| Forehand highest | ≈ 0.8 | 0.68 (set by analogy with the canter) | 0.78 |
+| Head lowest relative to the withers | ≈ 0.8 | 0.78 | 0.83 |
+| Neck and head | neck long and low, nose pushed out in front, face well off vertical | neck lowered but the head tucked, face near vertical | neck long and low, head opened, nose out |
+
+Changes:
+
+- **More reach at the gallop.** The trunk settles 12 cm (was 9 cm), the
+  legs' natural compression at speed, and the fast-end duty factor is
+  0.23–0.24.
+- **Rocking timing.** The rocking and the neck swing are aimed later in the
+  stride (`rockPeak` 0.58, `nodPeak` 0.5), so both peak at about 0.8, as
+  measured.
+- **Head and neck.**
+  - Neck carriage is lower at the gallop, and the nod is larger.
+  - The head now cancels the neck's static lowering in full and opens at
+    speed. Before, lowering the neck dragged the face toward vertical.
+
 ## Walk and trot
 
 | | Footage | Model |
@@ -94,9 +123,8 @@ rocking ran backwards.
     and `nodPeak` in `gaits.js`), so the forehand rises through the leading
     fore's stance and the head counter-swings.
   - Symmetric gaits keep the load-driven pitch.
-  - The gallop uses the same rule shifted to its own footfalls. No gallop
-    footage was measured, because the herd and desert shots don't track
-    cleanly.
+  - The gallop uses the same rule, later measured from the desert gallop
+    (below).
 - **Smaller adjustments.** Lower neck carriage and a higher tail at the
   canter, as in the footage. Less vertical bounce at the canter, so the
   rocking dominates.
@@ -116,8 +144,9 @@ Footfalls taken from them would not be a real horse's.
 
 ## Not yet measured
 
-- Gallop footfalls and rocking: the side-on gallop over red sand
-  (`wha-00m57s…`) needs a tracker that doesn't rely on coat colour.
+- Individual gallop footfall times: at 25 fps the gallop gives only 11
+  frames a stride, and motion blur hides the contacts; high-speed footage
+  would settle them.
 - Hoof contact detail from the close-up hooves in `wha-18m32s…`: fetlock
   sink, heel-first landing.
 - Behaviour: the alert stance in `wha-23m57s…`, sparring in `wha-00m18s…`, a
