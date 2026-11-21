@@ -342,14 +342,15 @@ export class Hair {
     this.forelock = new GuideGroup(horse, roots.forelock, {
       points: 10,
       segLen: 0.025,
-      stiffRoot: 0.4,
-      stiffTip: 0.02,
+      stiffRoot: 0.22,
+      stiffTip: 0.01,
       damping: 0.96,
       drag: 0.05,
       restDir: (r, t) => {
-        const d0 = r.nrm.clone().multiplyScalar(0.8).add(u.clone().multiplyScalar(0.5)).normalize();
-        const d1 = u.clone().add(new THREE.Vector3(0, 0, r.pos.z * 2)).normalize();
-        return d0.lerp(d1, Math.pow(t, 0.5)).normalize();
+        // up over the poll, then lying down the forehead
+        const d0 = r.nrm.clone().multiplyScalar(0.7).add(u.clone().multiplyScalar(0.6)).normalize();
+        const d1 = u.clone().multiplyScalar(0.8).add(new THREE.Vector3(HEAD.v[0], HEAD.v[1], 0).multiplyScalar(-0.25)).add(new THREE.Vector3(0, 0, r.pos.z * 3)).normalize();
+        return d0.lerp(d1, Math.pow(t, 0.4)).normalize();
       },
     });
     // --- tail ---
@@ -462,10 +463,15 @@ export class Hair {
     for (let v = 0; v < V; v++) {
       const dx = P[v * 3] - fc.x, dy = P[v * 3 + 1] - fc.y, dz = P[v * 3 + 2];
       const d = Math.hypot(dx, dy, dz);
-      if (d < 0.035 && Math.abs(dz) < 0.03) cands.push([d, v]);
+      if (d < 0.05 && Math.abs(dz) < 0.04 && Nn[v * 3 + 1] > 0.2) cands.push([d, v]);
     }
-    cands.sort((a, b) => a[0] - b[0]);
-    for (let i = 0; i < Math.min(6, cands.length); i += 1) fl.push(mk(cands[i * 3 % cands.length][1], { len: 0.17 + 0.03 * (i % 2) }));
+    // spread roots across the poll between the ears
+    const rr = rng(5);
+    for (let i = 0; i < 9 && cands.length; i++) {
+      const [, v] = cands[Math.floor(rr() * cands.length)];
+      if (fl.some((f) => Math.abs(f.pos.z - P[v * 3 + 2]) < 0.006 && Math.abs(f.pos.y - P[v * 3 + 1]) < 0.006)) continue;
+      fl.push(mk(v, { len: 0.13 + 0.05 * rr() }));
+    }
 
     // ---- tail: around the top and sides of the dock ----
     const tailBones = new Set(['tail0', 'tail1', 'tail2', 'tail3', 'tail4', 'tail5'].map((n) => this.horse.skeleton.bones.findIndex((b) => b.name === n)));

@@ -81,6 +81,10 @@ export class Locomotion {
     this.ears = { l: 0, r: 0, tl: 0, tr: 0, timer: 1 };
     this.lean = 0;
     this.prevBodyY = 0;
+    // idle: resting (cocked) hind leg after standing a while
+    this.idleTime = 0;
+    this.cock = 0;
+    this.cockLeg = 'LH';
 
     this.resetFeet();
   }
@@ -200,6 +204,15 @@ export class Locomotion {
     const meanF = (2 / Math.PI) * 2 * p.duty.F;
     const meanH = (2 / Math.PI) * 2 * p.duty.H;
 
+    // ---- idle: cock a hind leg after a few seconds at rest ----
+    if (this.standing) {
+      if (this.idleTime === 0) this.cockLeg = Math.random() < 0.5 ? 'LH' : 'RH';
+      this.idleTime += dt;
+    } else this.idleTime = 0;
+    const wantCock = this.idleTime > 3 ? 1 : 0;
+    this.cock += (wantCock - this.cock) * Math.min(1, dt * (wantCock ? 1.2 : 6));
+    const cockSide = this.cockLeg === 'LH' ? -1 : 1;
+
     // ---- body pose ----
     const mv = moving ? clamp(v / 1.0, 0, 1) : 0;
     const bodyY = -p.bob * (loads.all - meanAll) * mv - p.bodyDrop * clamp(v / 10, 0, 1);
@@ -216,7 +229,8 @@ export class Locomotion {
     // spine flexion (lumbosacral) – flexed as the hinds land, extended in fore stance
     const lumb = p.lumbar * Math.cos(TAU * (this.phase - 0.02)) * mv;
     B.lumbar.quaternion.setFromAxisAngle(Z, lumb * 0.4);
-    B.pelvis.quaternion.setFromAxisAngle(Z, lumb * 0.6);
+    _e.set(cockSide * 0.06 * this.cock, 0, lumb * 0.6, 'XYZ');
+    B.pelvis.quaternion.setFromEuler(_e);
     B.thorax.quaternion.setFromAxisAngle(Z, -lumb * 0.25);
 
     // ---- neck & head ----
@@ -276,7 +290,8 @@ export class Locomotion {
       let hoofAbs = null;
       let swingRelCoffin = 0;
       if (leg.stance) {
-        const bo = leg.hold ? 0 : -p.breakover * smooth(clamp((leg.s - 0.62) / 0.38, 0, 1));
+        const cocked = leg.name === this.cockLeg ? this.cock : 0;
+        const bo = leg.hold ? -0.6 * cocked : -p.breakover * smooth(clamp((leg.s - 0.62) / 0.38, 0, 1));
         leg.hoofPitch = bo;
         const cx = leg.toeToCoffin[0] * Math.cos(bo) - leg.toeToCoffin[1] * Math.sin(bo);
         const cy = leg.toeToCoffin[0] * Math.sin(bo) + leg.toeToCoffin[1] * Math.cos(bo);
@@ -316,7 +331,8 @@ export class Locomotion {
     const hold = leg.hold;
 
     // distal joint curves
-    const fetlock = st ? (hold ? 0 : p.fetlockExt * Math.pow(Math.sin(Math.PI * s), 1.4)) : -p.fetlockFlex * bump(w, 0.55, 1.2);
+    const cocked = leg.name === this.cockLeg ? this.cock : 0;
+    const fetlock = st ? (hold ? -0.55 * cocked : p.fetlockExt * Math.pow(Math.sin(Math.PI * s), 1.4)) : -p.fetlockFlex * bump(w, 0.55, 1.2);
     const roll = clamp(-Math.atan2(T.z - leg.restCoffinLocal.z, Math.max(0.3, P[0][1] - T.y)), -0.25, 0.25);
 
     if (leg.fore) {

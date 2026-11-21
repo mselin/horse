@@ -235,7 +235,7 @@ ell2([-0.14, 1.455, 0.085], [0.4, 0.06, 0.09], { k: 0.1, bone: SPINE_CHAIN, hair
 // Middle gluteals: rounded top of the croup
 ell2([-0.62, 1.478, 0.085], [0.3, 0.085, 0.12], { rot: [0, 0, -7], k: 0.12, bone: SPINE_CHAIN, hair: [-1, -0.35, 0], name: 'gluteal' });
 // Point of hip (tuber coxae)
-ell2([-0.45, 1.415, 0.178], [0.075, 0.06, 0.05], { k: 0.09, bone: 'pelvis', hair: [-1, -0.6, 0.3], name: 'hipPoint' });
+ell2([-0.45, 1.41, 0.17], [0.07, 0.055, 0.045], { k: 0.1, bone: 'pelvis', hair: [-1, -0.6, 0.3], name: 'hipPoint' });
 // Spring of rib / serratus behind the shoulder
 // External oblique over the flank
 // Flank fold toward the stifle
@@ -271,7 +271,7 @@ cone2([-0.925, 1.26, 0.075], [-0.795, 0.73, 0.1], 0.075, 0.042, {
 // Point of buttock (tuber ischii)
 ell2([-0.92, 1.255, 0.075], [0.055, 0.055, 0.05], { k: 0.05, bone: 'pelvis', hair: [-0.4, -1, 0], name: 'pointOfButtock' });
 // Tensor fasciae latae: ridge from the point of hip down the front of the thigh
-cone2([-0.46, 1.38, 0.19], [-0.525, 0.98, 0.18], 0.05, 0.045, {
+cone2([-0.47, 1.36, 0.18], [-0.525, 0.98, 0.18], 0.045, 0.045, {
   k: 0.1,
   bone: [
     [0.1, 'pelvis'],

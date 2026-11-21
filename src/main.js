@@ -98,7 +98,7 @@ const state = {
   sockRF: false,
   sockLH: true,
   sockRH: false,
-  timeOfDay: 0.075,
+  timeOfDay: 0.045,
   exposure: 0.62,
   camera: params.get('cam') || 'orbit',
   demo: !params.has('nodemo'),
@@ -143,7 +143,7 @@ controls.maxPolarAngle = Math.PI * 0.495;
 controls.target.set(0, 1.2, 0);
 const focus = new THREE.Vector3(0, 1.2, 0);
 const lastFocus = focus.clone();
-const cine = { shot: +(params.get('shot') ?? 0), t: 0, pos: new THREE.Vector3(), look: new THREE.Vector3(), cut: true };
+const cine = { shot: +(params.get('shot') ?? 0), t: 0, off: new THREE.Vector3(), look: new THREE.Vector3(), yaw: 0, cut: true };
 const SHOTS = [
   { dur: 7, off: [0.6, 0.9, 4.2], look: [0.2, 1.1, 0], fov: 32 }, // low side tracking
   { dur: 6, off: [5.5, 1.3, 2.2], look: [0.3, 1.2, 0], fov: 30 }, // leading 3/4 front
@@ -155,7 +155,10 @@ function updateCamera(dt) {
   const body = horse.bones.body.getWorldPosition(new THREE.Vector3());
   const target = body.clone();
   target.y = 1.15;
-  focus.lerp(target, Math.min(1, dt * 6));
+  // follow exactly in the ground plane, smooth only the vertical bob
+  focus.x = target.x;
+  focus.z = target.z;
+  focus.y += (target.y - focus.y) * Math.min(1, dt * 4);
   if (state.camera === 'orbit') {
     const delta = focus.clone().sub(lastFocus);
     camera.position.add(delta);
@@ -164,8 +167,10 @@ function updateCamera(dt) {
     controls.update();
   } else {
     controls.enabled = false;
-    const yaw = loco.yaw;
-    const toWorld = (o) => new THREE.Vector3(o[0], o[1], o[2]).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).add(new THREE.Vector3(focus.x, 0, focus.z));
+    // camera offsets live in the horse's frame; smooth the offset and the
+    // heading separately so the horse never runs out of shot
+    let dy = loco.yaw - cine.yaw;
+    dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     let shot;
     if (state.camera === 'side') shot = SHOTS[0];
     else {
@@ -178,21 +183,26 @@ function updateCamera(dt) {
       shot = SHOTS[cine.shot];
     }
     const drift = Math.sin(cine.t * 0.3) * 0.4;
-    const desired = toWorld([shot.off[0] + drift, shot.off[1], shot.off[2]]);
-    const look = toWorld(shot.look);
+    const off = new THREE.Vector3(shot.off[0] + drift, shot.off[1], shot.off[2]);
+    const lk = new THREE.Vector3(...shot.look);
     if (cine.cut) {
-      cine.pos.copy(desired);
-      cine.look.copy(look);
+      cine.off.copy(off);
+      cine.look.copy(lk);
+      cine.yaw = loco.yaw;
       cine.cut = false;
     }
-    cine.pos.lerp(desired, Math.min(1, dt * 2.5));
-    cine.look.lerp(look, Math.min(1, dt * 5));
-    camera.position.copy(cine.pos);
+    cine.yaw += dy * Math.min(1, dt * 1.5);
+    cine.off.lerp(off, Math.min(1, dt * 1.5));
+    cine.look.lerp(lk, Math.min(1, dt * 3));
+    const up = new THREE.Vector3(0, 1, 0);
+    const base = new THREE.Vector3(focus.x, 0, focus.z);
+    camera.position.copy(cine.off).applyAxisAngle(up, cine.yaw).add(base);
+    const lookW = cine.look.clone().applyAxisAngle(up, cine.yaw).add(base);
     camera.position.y = Math.max(0.25, camera.position.y);
-    camera.lookAt(cine.look);
+    camera.lookAt(lookW);
     camera.fov += (shot.fov - camera.fov) * Math.min(1, dt * 2);
     camera.updateProjectionMatrix();
-    controls.target.copy(cine.look);
+    controls.target.copy(lookW);
   }
   lastFocus.copy(focus);
 }
@@ -244,7 +254,7 @@ function updateDemo(dt) {
     demo.i = (demo.i + 1) % demo.seq.length;
   }
   setGaitIndex(demo.seq[demo.i][0]);
-  loco.steer = Math.sin(performance.now() * 0.00012) * 0.35;
+  loco.steer = demo.seq[demo.i][0] === 0 ? 0 : Math.sin(performance.now() * 0.00012) * 0.35;
 }
 
 // ---------------------------------------------------------------------------
@@ -345,6 +355,10 @@ function frame() {
   hudSpeed.textContent = `${(loco.speed * 3.6).toFixed(0)} km/h`;
 
   composer.render();
+  if (params.has('still')) {
+    window.__stillDone = true;
+    return;
+  }
   requestAnimationFrame(frame);
 }
 frame();

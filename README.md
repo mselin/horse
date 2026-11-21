@@ -4,6 +4,19 @@ A realistic Thoroughbred, **sculpted, rigged, groomed and animated entirely in
 code**, running in the browser with three.js / WebGL2. No external meshes,
 textures or motion capture are used.
 
+![Gallop, side tracking shot](docs/screenshots/gallop-side.jpg)
+
+| | |
+| --- | --- |
+| ![Standing](docs/screenshots/standing.jpg) | ![Gallop toward camera](docs/screenshots/gallop-front.jpg) |
+
+Gallop cycle (gathered → extended), procedural:
+
+![Gallop cycle](docs/screenshots/gallop-cycle.jpg)
+
+*Screenshots come from a headless software renderer (SwiftShader), with no
+GPU anti-aliasing for the hair. A real GPU renders cleaner hair edges.*
+
 ## Run
 
 ```bash

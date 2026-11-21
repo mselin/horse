@@ -69,20 +69,20 @@ export class World {
     this.envTarget = null;
 
     this.fogColor = new THREE.Color('#d8b991');
-    scene.fog = new THREE.FogExp2(this.fogColor, 0.0045);
+    scene.fog = new THREE.FogExp2(this.fogColor, 0.0021);
 
     this.buildGround();
     this.buildGrass();
     this.buildHills();
     this.buildDust();
-    this.setTimeOfDay(0.075);
+    this.setTimeOfDay(0.045);
   }
 
   // t: 0 = sunrise, 0.5 = noon, 1 = sunset
   setTimeOfDay(t) {
     this.tod = t;
     const elev = Math.sin(Math.PI * t) * 58 + 2; // degrees
-    const az = 35 + t * 110; // sun ahead-right of the default heading
+    const az = 70 + t * 100; // low sun ahead of the default heading: raking light on the flanks
     const phi = THREE.MathUtils.degToRad(90 - elev);
     const theta = THREE.MathUtils.degToRad(az);
     this.sunDir = new THREE.Vector3().setFromSphericalCoords(1, phi, theta);
@@ -94,7 +94,7 @@ export class World {
     const warm = THREE.MathUtils.clamp(1 - (elev - 4) / 40, 0, 1);
     this.sun.color.setRGB(1, 0.93 - 0.2 * warm, 0.84 - 0.36 * warm);
     this.sun.intensity = 1.2 + 2.6 * THREE.MathUtils.clamp(elev / 25, 0, 1);
-    this.fogColor.setRGB(0.82 - 0.05 * warm, 0.74 - 0.08 * warm, 0.62 - 0.12 * warm + (1 - warm) * 0.12);
+    this.fogColor.setRGB(0.8 - 0.04 * warm, 0.74 - 0.06 * warm, 0.66 - 0.12 * warm);
     this.scene.fog.color.copy(this.fogColor);
     if (this.envTarget) this.envTarget.dispose();
     this.envTarget = this.pmrem.fromScene(this.envScene, 0, 0.1, 2000);
@@ -103,7 +103,7 @@ export class World {
   }
 
   buildGround() {
-    const geo = new THREE.PlaneGeometry(600, 600, 1, 1);
+    const geo = new THREE.PlaneGeometry(3000, 3000, 1, 1);
     geo.rotateX(-Math.PI / 2);
     const mat = new THREE.MeshLambertMaterial({ color: '#ffffff' });
     mat.onBeforeCompile = (sh) => {
@@ -187,10 +187,15 @@ export class World {
           vec2 wpos = uCenter.xz + mod(base - uCenter.xz + uR, 2.0 * uR) - uR;
           float dens = 0.45 + 0.55 * smoothstep(0.3, 0.62, wFbm(wpos * 0.08));
           float h = aOff.w * dens * (0.6 + 0.8 * wNoise(wpos * 0.5));
-          float t = position.y / 0.32;
+          float t = position.y / 0.34;
           float c = cos(aOff.z), s = sin(aOff.z);
           vec3 p = vec3(position.x * (1.0 - t * 0.85), position.y * h, 0.0);
           p = vec3(c * p.x, p.y, s * p.x);
+          // per-blade lean and curvature
+          float leanA = wHash(wpos * 3.1) * 6.2831;
+          float lean = (0.15 + 0.55 * wHash(wpos * 7.7)) * t * t * h * 0.34;
+          p.xz += vec2(cos(leanA), sin(leanA)) * lean;
+          p.y -= lean * lean * 1.2;
           float wind = sin(uTime * 1.7 + wpos.x * 0.35 + wpos.y * 0.2) * 0.5 + sin(uTime * 3.1 + wpos.x * 1.3) * 0.2;
           vec2 bend = vec2(0.6, 0.25) * wind * 0.18 * t * t * h;
           // horse pushes grass aside
@@ -210,9 +215,9 @@ export class World {
           '#include <color_fragment>',
           `#include <color_fragment>
           float n = wNoise(vGW * 0.7);
-          vec3 base = mix(vec3(0.16, 0.13, 0.05), vec3(0.24, 0.2, 0.08), n);
-          vec3 tip = mix(vec3(0.62, 0.48, 0.22), vec3(0.45, 0.42, 0.16), n);
-          diffuseColor.rgb = mix(base, tip, vGH * vGH);`
+          vec3 base = mix(vec3(0.26, 0.22, 0.1), vec3(0.32, 0.28, 0.12), n);
+          vec3 tip = mix(vec3(0.7, 0.56, 0.3), vec3(0.52, 0.48, 0.22), n);
+          diffuseColor.rgb = mix(base, tip, smoothstep(0.0, 1.0, vGH));`
         );
     };
     this.grass = new THREE.Mesh(geo, mat);
@@ -239,7 +244,24 @@ export class World {
       pos.setY(i, Math.max(0, h) - 1);
     }
     geo.computeVertexNormals();
-    const mat = new THREE.MeshLambertMaterial({ color: '#6e5a40' });
+    const mat = new THREE.MeshLambertMaterial({ color: '#ffffff' });
+    mat.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vHP;')
+        .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvHP = position;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vHP;\n' + GROUND_FN)
+        .replace(
+          '#include <color_fragment>',
+          `#include <color_fragment>
+          float n = wFbm(vHP.xz * 0.01);
+          float scrub = smoothstep(0.55, 0.75, wFbm(vHP.xz * 0.05 + 3.0));
+          vec3 c = mix(vec3(0.42, 0.34, 0.2), vec3(0.5, 0.42, 0.26), n);
+          c = mix(c, vec3(0.2, 0.2, 0.12), scrub * 0.6);
+          c *= 0.85 + 0.25 * smoothstep(0.0, 120.0, vHP.y);
+          diffuseColor.rgb = c;`
+        );
+    };
     this.hills = new THREE.Mesh(geo, mat);
     this.scene.add(this.hills);
   }
