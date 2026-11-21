@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Mika Selin
 // Coat shader: MeshPhysicalMaterial extended with
 //   * coat colour presets (bay, chestnut, black, grey, palomino, buckskin)
 //   * "points" (black lower legs / ear rims / mane line) from the baked mask

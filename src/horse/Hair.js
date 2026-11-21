@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Mika Selin
 // Mane, forelock and tail: simulated guide strands + thousands of GPU-expanded
 // render strands.
 //

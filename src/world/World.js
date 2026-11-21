@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Mika Selin
 // Open-range environment: physical sky + sun, IBL, fog, procedural ground,
 // instanced wind-blown grass that follows the horse, distant hills and dust.
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Mika Selin
 // The horse sculpt: an ordered list of anatomical primitives.
 //
 // Every node carries

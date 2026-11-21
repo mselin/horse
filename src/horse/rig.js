@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Mika Selin
 // Skeleton of a ~16 hh (1.62 m at the withers) riding horse in a square
 // standing pose. Units: metres. Axes: +X forward, +Y up, +Z to the horse's
 // right side. All bones have identity rest rotation, so a bone's rest frame is

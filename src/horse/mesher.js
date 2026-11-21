@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Mika Selin
 // Naive Surface Nets polygonizer with sparse block evaluation.
 //
 // Only blocks that can contain the surface are sampled densely, which keeps a
