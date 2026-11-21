@@ -97,19 +97,37 @@ camera zooms in to 30 cm.
 5. **Locomotion** (`gaits.js`, `Locomotion.js`):
    - Footfall timing, duty factors and stride frequencies come from the
      literature.
-   - Each leg is a stance/swing state machine whose hooves plant in world
-     space, with breakover at the end of stance.
-   - Two-bone inverse kinematics run in each leg's plane, with folding
-     knee, hock and fetlock in swing.
-   - Body bounce, pitch and roll come from the load on each leg.
-   - Back flexion, neck nod, head stabilisation, tail carriage and ear
-     movement are layered on top.
+   - Each leg runs its own cycle and re-times itself while in the air, so
+     gaits change within about a stride.
+   - Hooves plant in world space with breakover. Stance length adapts to
+     speed, so the legs never have to reach past their length.
+   - Swing is planned in the heading frame. The hoof follows through after
+     lift-off, then reaches forward and retracts before landing.
+   - Two-bone IK uses a soft limit near full extension. The joint curves
+     are C2-smooth.
+   - The trunk (bounce, pitch, roll, sway and surge) is a set of springs
+     driven by the load on each leg. The neck and tail are spring
+     cascades, so motion travels along them with lag and overshoot.
+   - The head is stabilised. Breathing locks to the stride at canter and
+     gallop, and the belly and flanks jiggle.
+   - See [docs/MOTION-NOTES.md](docs/MOTION-NOTES.md) for the analysis,
+     the reference footage, and a realism checklist.
 6. **Mane and tail** (`Hair.js`):
-   - Simulated guide strands use Verlet physics: roots are skinned to the
-     body, the shape is held toward the rest pose, and wind, air drag from
-     the horse's own speed, and collision spheres act on them.
-   - About 21,000 rendered strands are expanded into camera-facing ribbons
-     on the GPU and shaded with anisotropic highlights.
+   - Simulated guide strands use Verlet physics:
+     - roots are skinned to the body, and the shape is held toward the rest
+       pose
+     - wind gusts, air drag from the horse's own speed, flutter at speed
+       and collision spheres act on them
+   - About 21,000 to 26,000 rendered strands are expanded into
+     camera-facing ribbons on the GPU. They taper to the tip, and roots
+     and lock interiors are darker.
+   - Shading uses a hair model (after Kajiya-Kay and Marschner):
+     - a white primary highlight shifted toward the root
+     - a secondary highlight tinted by the hair colour
+     - light transmitted through backlit strands
+   - Strands thinner than a pixel are drawn one pixel wide with matching
+     coverage, so the hair stays silky at any distance instead of
+     flickering.
 7. **World** (`src/world/World.js`):
    - physical sky with clouds and sky-based lighting
    - golden-hour sun with shadows following the horse
@@ -133,7 +151,7 @@ locomotion, hair and world code stay as they are.
 | Job | What it checks |
 | --- | --- |
 | Site checks | HTML against the standard, with html-validate |
-| Build and browser smoke test | `npm run build`, then `npm run test:smoke`. The smoke test loads the built site in headless Chromium with software WebGL, bakes the horse, canters, renders a frame, and fails on any page or console error |
+| Build and browser smoke test | `npm run test:motion`, then `npm run build` and `npm run test:smoke`. **The motion check** drives the locomotion headless through every gait, turns and a halt, and fails on reach error, planted-hoof slip, trunk acceleration spikes, NaNs, or a horse that doesn't settle. **The smoke test** loads the built site in headless Chromium with software WebGL, bakes the horse, canters, renders a frame, and fails on any page or console error |
 | All checks passed | Succeeds only if every job above did. This is the check that merging requires |
 | Publish the horse | On `main` only, after all checks pass: deploys `dist/` with GitHub Pages to https://mselin.github.io/horse/ |
 

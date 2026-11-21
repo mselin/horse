@@ -80,7 +80,7 @@ export function bakeHorse({ cell = 0.0075, onProgress } = {}) {
 
   // ---- smooth across the surface ----
   const adj = buildAdjacency(mesh.indices, V);
-  smoothAttr(W, NUM_BONES, adj, 8, 0.5);
+  smoothAttr(W, NUM_BONES, adj, 14, 0.55); // softer joint transitions in motion
   smoothAttr(MATS, 4, adj, 2, 0.5);
   smoothAttr(HAIR, 3, adj, 6, 0.6);
 

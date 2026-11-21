@@ -339,6 +339,7 @@ function updateCondition(dt) {
   u.uSweat.value = state.sweat;
   u.uVeins.value = Math.min(1, state.veins + 0.6 * state.sweat);
   u.uDetail.value = state.hairDetail;
+  u.uJiggle.value.set(0, loco.jiggle.x, 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -371,6 +372,20 @@ if (params.has('sim')) {
   }
   if (params.has('freeze')) loco.update = () => {};
 }
+// Frame capture for review videos: ?capture&sim=..&gait=.. then call
+// window.__captureStep(dt) repeatedly; each call advances and renders one frame.
+if (params.has('capture')) {
+  state.demo = false;
+  const fixed = { t: 0 };
+  clock.getDelta = () => fixed.dt ?? 1 / 30;
+  window.__captureStep = (dt = 1 / 30, gaitIndex) => {
+    if (gaitIndex !== undefined) setGaitIndex(gaitIndex);
+    fixed.dt = dt;
+    clock.update = () => {};
+    frame();
+    return renderer.domElement.toDataURL('image/jpeg', 0.88);
+  };
+}
 document.getElementById('loader').classList.add('done');
 hud.classList.remove('hidden');
 window.__ready = true;
@@ -388,7 +403,7 @@ function frame() {
   loco.update(dt);
   horse.group.updateMatrixWorld(true);
   vel.set(Math.cos(loco.yaw), 0, -Math.sin(loco.yaw)).multiplyScalar(loco.speed);
-  if (state.hair) hair.update(dt, vel, world.sunDir.clone().negate());
+  if (state.hair) hair.update(dt, vel, world.sunDir.clone().negate(), camera, renderer.domElement.height);
   updateCondition(dt);
   facial.update(camera);
   updateCamera(dt);
@@ -399,6 +414,7 @@ function frame() {
   hudSpeed.textContent = `${(loco.speed * 3.6).toFixed(0)} km/h`;
 
   composer.render();
+  if (params.has('capture')) return; // frames are driven by window.__captureStep
   if (params.has('still')) {
     window.__stillDone = true;
     return;

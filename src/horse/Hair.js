@@ -115,7 +115,7 @@ class GuideGroup {
     }
   }
 
-  step(dt, wind) {
+  step(dt, wind, time = 0) {
     if (!this.initialised) this.reset();
     this.skinRoots();
     this.updateColliders();
@@ -124,10 +124,14 @@ class GuideGroup {
     const damp = this.damping, drag = this.drag;
     const gy = -9.81 * dt * dt;
     const cols = this.colliders;
+    const wl = Math.hypot(wind.x, wind.y, wind.z);
+    // flutter direction: across the relative wind, mostly vertical
+    const fx = -wind.z / (wl || 1), fz = wind.x / (wl || 1);
     for (let g = 0; g < this.G; g++) {
       const rx = this.rootWorld[g * 3], ry = this.rootWorld[g * 3 + 1], rz = this.rootWorld[g * 3 + 2];
       bones[this.roots[g].bone].getWorldQuaternion(tmpQ);
       const seg = this.seg[g];
+      const gust = 1 + 0.35 * Math.sin(time * 1.7 + g * 1.3) * Math.sin(time * 0.6 + g * 0.37);
       const base = g * N * 3;
       // root pinned
       P[base] = Q[base] = rx;
@@ -140,10 +144,12 @@ class GuideGroup {
         Q[o + 1] = P[o + 1];
         Q[o + 2] = P[o + 2];
         // air drag toward the wind velocity
-        const ax = (wind.x * dt - vx) * drag, ay = (wind.y * dt - vy) * drag, az = (wind.z * dt - vz) * drag;
-        P[o] += vx * damp + ax * dt * 60;
-        P[o + 1] += vy * damp + ay * dt * 60 + gy;
-        P[o + 2] += vz * damp + az * dt * 60;
+        const ax = (wind.x * gust * dt - vx) * drag, ay = (wind.y * gust * dt - vy) * drag, az = (wind.z * gust * dt - vz) * drag;
+        // air-driven flutter, growing toward the tip and with air speed
+        const fl = 0.45 * wl * (i / N) * Math.sin(time * 11 + g * 2.1 + i * 0.8) * dt * dt;
+        P[o] += vx * damp + ax * dt * 60 + fx * fl * 0.5;
+        P[o + 1] += vy * damp + ay * dt * 60 + gy + fl;
+        P[o + 2] += vz * damp + az * dt * 60 + fz * fl * 0.5;
       }
       // constraints
       for (let it = 0; it < 3; it++) {
@@ -266,12 +272,16 @@ uniform float uN;
 uniform float uWave;
 uniform vec3 uExpandDir;
 uniform float uUseDir;
+uniform float uPixelK;   // pixels per metre at 1 m distance (0 = off)
+uniform float uSpread;
 attribute vec4 aStrand;
 attribute vec4 aOffset;
 attribute vec4 aParam;
 varying float vHairT;
 varying float vHairCol;
 varying float vHairAcross;
+varying float vHairCover;
+varying float vHairOuter;
 vec3 gp(int g, float f) {
   float n = uN - 1.0;
   f = clamp(f, 0.0, n - 0.0001);
@@ -308,11 +318,25 @@ const HAIR_VERT_MAIN = /* glsl */ `
   hairPoint(hT, hP, hT3, hS);
   vec3 toEye = uUseDir > 0.5 ? -uExpandDir : normalize(cameraPosition - hP);
   vec3 across = normalize(cross(hT3, toEye) + 1e-6);
-  float width = aParam.w * mix(1.0, 0.35, hT);
+  float width = aParam.w * mix(1.0, 0.18, pow(hT, 1.4));
+  // Pixel coverage: a strand thinner than a pixel is drawn one pixel wide and
+  // made proportionally transparent (alpha-to-coverage turns that into
+  // sub-pixel coverage) instead of flickering in and out.
+  vHairCover = 1.0;
+  if (uPixelK > 0.0 && uUseDir < 0.5) {
+    float minW = 1.0 * length(cameraPosition - hP) / uPixelK;
+    if (width < minW) {
+      // each drawn strand stands for several real hairs behind it, so its
+      // coverage is boosted; the core of a lock stays opaque at a distance
+      vHairCover = clamp(2.4 * width / minW + 0.12, 0.0, 1.0);
+      width = minW;
+    }
+  }
   hP += across * aParam.y * width * 0.5;
   vHairT = hT;
   vHairCol = aParam.z;
   vHairAcross = aParam.y;
+  vHairOuter = clamp(length(aOffset.xy) / max(uSpread, 1e-4), 0.0, 1.0);
 `;
 
 export class Hair {
@@ -322,14 +346,16 @@ export class Hair {
     this.group.name = 'Hair';
     this.wind = new THREE.Vector3(0.6, 0, 0.3);
     this.time = 0;
+    this.pixelK = { value: 0 };
+    this.tipLight = { value: 0.08 };
 
     const roots = this.findRoots();
     // --- mane ---
     this.mane = new GuideGroup(horse, roots.mane, {
-      points: 10,
+      points: 12,
       segLen: 0.03,
-      stiffRoot: 0.3,
-      stiffTip: 0.008,
+      stiffRoot: 0.34,
+      stiffTip: 0.004,
       damping: 0.96,
       drag: 0.05,
       restDir: (r, t) => {
@@ -357,11 +383,11 @@ export class Hair {
     });
     // --- tail ---
     this.tail = new GuideGroup(horse, roots.tail, {
-      points: 16,
+      points: 20,
       segLen: 0.05,
-      stiffRoot: 0.25,
-      stiffTip: 0.004,
-      damping: 0.975,
+      stiffRoot: 0.3,
+      stiffTip: 0.002,
+      damping: 0.98,
       drag: 0.035,
       restDir: (r, t) => {
         const d0 = r.dock.clone().multiplyScalar(0.8).add(r.nrm.clone().multiplyScalar(0.3)).normalize();
@@ -386,6 +412,12 @@ export class Hair {
         uWave: { value: opts.wave },
         uExpandDir: { value: new THREE.Vector3(0, -1, 0) },
         uUseDir: { value: 0 },
+        uPixelK: this.pixelK,
+        uSpread: { value: opts.spread },
+        uTipLight: this.tipLight,
+        uHairR: { value: 0.11 },
+        uHairTRT: { value: 0.12 },
+        uHairTT: { value: 0.22 },
       };
       this.patch(mat, false);
       const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
@@ -402,10 +434,10 @@ export class Hair {
       this.meshes.push(mesh);
     };
     const seqNeighbour = (G) => (g, r) => Math.min(G - 1, Math.max(0, g + (r() < 0.5 ? -1 : 1)));
-    makeMesh(this.mane, { count: Math.round(7000 * density), width: 0.003, seed: 1, neighbours: seqNeighbour(this.mane.G), spread: 0.012, clumpTip: 0.25, wave: 0.004, lenJitter: 0.3, colorJitter: 0.35 });
+    makeMesh(this.mane, { count: Math.round(8500 * density), width: 0.003, seed: 1, neighbours: seqNeighbour(this.mane.G), spread: 0.012, clumpTip: 0.25, wave: 0.004, lenJitter: 0.3, colorJitter: 0.35 });
     makeMesh(this.forelock, { count: Math.round(700 * density), width: 0.002, seed: 2, neighbours: seqNeighbour(this.forelock.G), spread: 0.012, clumpTip: 0.3, wave: 0.003, lenJitter: 0.35, colorJitter: 0.35 });
     const tailNb = this.tailNeighbours();
-    makeMesh(this.tail, { count: Math.round(8000 * density), width: 0.0034, seed: 3, neighbours: (g, r) => tailNb[g][Math.floor(r() * tailNb[g].length)], spread: 0.02, clumpTip: 0.22, wave: 0.006, lenJitter: 0.35, colorJitter: 0.3 });
+    makeMesh(this.tail, { count: Math.round(11000 * density), width: 0.0034, seed: 3, neighbours: (g, r) => tailNb[g][Math.floor(r() * tailNb[g].length)], spread: 0.02, clumpTip: 0.22, wave: 0.006, lenJitter: 0.35, colorJitter: 0.3 });
   }
 
   setColor(hex) {
@@ -580,6 +612,40 @@ export class Hair {
       Object.assign(shader.uniforms, u);
       shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\n' + HAIR_VERT_PARS);
       if (!isDepth) {
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <lights_physical_pars_fragment>',
+          `#include <lights_physical_pars_fragment>
+          // Hair: Kajiya-Kay style lobes after Marschner et al. – a white
+          // primary highlight (R) shifted toward the root, a broader secondary
+          // highlight tinted by the hair (TRT) shifted toward the tip, and light
+          // transmitted through backlit strands (TT). Shadows arrive through
+          // directLight.color as for any other material.
+          uniform float uHairR, uHairTRT, uHairTT;
+          void RE_Direct_Hair(const in IncidentLight directLight, const in vec3 geometryPosition, const in vec3 geometryNormal,
+                              const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal,
+                              const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
+            vec3 T = normalize(vTangent);
+            vec3 L = directLight.direction;
+            vec3 V = geometryViewDir;
+            vec3 N = geometryNormal;
+            float TL = dot(T, L);
+            float sinTL = sqrt(max(0.0, 1.0 - TL * TL));
+            float wrapNL = clamp((dot(N, L) + 0.45) / 1.45, 0.0, 1.0);
+            reflectedLight.directDiffuse += directLight.color * mix(sinTL, wrapNL, 0.55) * BRDF_Lambert(material.diffuseColor);
+            vec3 H = normalize(L + V);
+            vec3 T1 = normalize(T - N * 0.08);
+            vec3 T2 = normalize(T + N * 0.12);
+            float h1 = dot(T1, H), h2 = dot(T2, H);
+            float r = pow(sqrt(max(0.0, 1.0 - h1 * h1)), 160.0);
+            float trt = pow(sqrt(max(0.0, 1.0 - h2 * h2)), 30.0);
+            float lit = smoothstep(0.0, 0.35, wrapNL);
+            vec3 spec = (uHairR * r * vec3(1.0) + uHairTRT * trt * material.diffuseColor * 3.0) * lit;
+            spec += uHairTT * pow(clamp(dot(-V, L), 0.0, 1.0), 5.0) * material.diffuseColor * 2.5;
+            reflectedLight.directSpecular += directLight.color * spec;
+          }
+          #undef RE_Direct
+          #define RE_Direct RE_Direct_Hair`
+        );
         shader.vertexShader = shader.vertexShader
           .replace(
             '#include <beginnormal_vertex>',
@@ -597,13 +663,19 @@ export class Hair {
             `#include <common>
             varying float vHairT;
             varying float vHairCol;
-            varying float vHairAcross;`
+            varying float vHairAcross;
+            varying float vHairCover;
+            varying float vHairOuter;
+            uniform float uTipLight;`
           )
           .replace(
             '#include <color_fragment>',
             `#include <color_fragment>
-            diffuseColor.rgb *= vHairCol * mix(0.55, 1.0, smoothstep(0.0, 0.25, vHairT));
-            diffuseColor.a = (1.0 - smoothstep(0.82, 1.0, vHairT)) * (1.0 - 0.6 * pow(abs(vHairAcross), 6.0));`
+            // deep in the lock and near the roots the hair is shadowed by its neighbours
+            diffuseColor.rgb *= vHairCol * mix(0.45, 1.0, smoothstep(0.0, 0.3, vHairT)) * mix(0.7, 1.05, vHairOuter);
+            // sun-bleached tips
+            diffuseColor.rgb *= 1.0 + uTipLight * smoothstep(0.55, 1.0, vHairT);
+            diffuseColor.a = (1.0 - smoothstep(0.85, 1.0, vHairT)) * (1.0 - 0.6 * pow(abs(vHairAcross), 6.0)) * vHairCover;`
           );
       } else {
         shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `${HAIR_VERT_MAIN}\nvec3 transformed = hP;`);
@@ -612,12 +684,13 @@ export class Hair {
     mat.customProgramCacheKey = () => (isDepth ? 'hair-depth' : 'hair-main');
   }
 
-  update(dt, horseVelocity, sunDir) {
+  update(dt, horseVelocity, sunDir, camera = null, viewportHeight = 0) {
+    if (camera && viewportHeight) this.pixelK.value = (camera.projectionMatrix.elements[5] * viewportHeight) / 2;
     this.time += dt;
     const gust = 1 + 0.6 * Math.sin(this.time * 0.7) * Math.sin(this.time * 1.9 + 1.3);
     const w = this.wind.clone().multiplyScalar(gust).sub(horseVelocity);
     const sub = dt > 1 / 50 ? 2 : 1;
-    for (const g of this.groups) for (let i = 0; i < sub; i++) g.step(dt / sub, w);
+    for (const g of this.groups) for (let i = 0; i < sub; i++) g.step(dt / sub, w, this.time);
     for (const mesh of this.meshes) {
       const g = mesh.userData.group;
       const tex = mesh.userData.tex;

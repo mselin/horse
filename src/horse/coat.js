@@ -36,6 +36,7 @@ export const MANE_COLORS = {
 };
 
 const VERT_PARS = /* glsl */ `
+uniform vec3 uJiggle;
 attribute vec4 mats;
 attribute vec2 aoCurv;
 attribute vec3 restPos;
@@ -384,6 +385,7 @@ export function createCoatMaterial(coatName = 'chestnut') {
     uDirt: { value: 0.15 },
     uSweat: { value: 0.0 },
     uVeins: { value: 0.5 },
+    uJiggle: { value: new THREE.Vector3() },
   };
   mat.userData.uniforms = u;
   setCoat(mat, coatName);
@@ -392,7 +394,19 @@ export function createCoatMaterial(coatName = 'chestnut') {
     Object.assign(shader.uniforms, u);
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\n' + VERT_PARS)
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + VERT_MAIN);
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + VERT_MAIN)
+      .replace(
+        '#include <skinning_vertex>',
+        `#include <skinning_vertex>
+        {
+          // soft tissue: belly and flanks lag the trunk's vertical motion
+          vec3 rp = restPos;
+          float belly = smoothstep(1.12, 0.9, rp.y) * smoothstep(0.42, 0.1, abs(rp.x + 0.05)) * smoothstep(0.05, -0.4, normal.y);
+          float flank = smoothstep(1.3, 1.0, rp.y) * smoothstep(-0.75, -0.45, rp.x) * smoothstep(-0.2, -0.35, rp.x) * 0.5;
+          float quarter = smoothstep(1.25, 1.05, rp.y) * smoothstep(-0.6, -0.8, rp.x) * smoothstep(0.3, 0.05, abs(rp.y - 1.1)) * 0.25;
+          transformed += uJiggle * max(belly, max(flank, quarter));
+        }`
+      );
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\n' + FRAG_PARS)
       .replace('#include <color_fragment>', '#include <color_fragment>\n' + COLOR_MAIN)
