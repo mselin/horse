@@ -8,6 +8,7 @@ import { bakeInWorker, Horse } from './horse/Horse.js';
 import { Locomotion } from './horse/Locomotion.js';
 import { Hair } from './horse/Hair.js';
 import { MANE_COLORS } from './horse/coat.js';
+import { addFacialHairs } from './horse/FacialHairs.js';
 
 const params = new URLSearchParams(location.search);
 const view = params.get('view') || 'side';
@@ -57,6 +58,11 @@ const views = {
   headside: [[1.2, 1.8, 1.45], [1.2, 1.78, 0.0]],
   headfront: [[2.7, 1.9, 0.0], [1.25, 1.76, 0.0]],
   eye: [[1.45, 1.92, 0.55], [1.2, 1.9, 0.08]],
+  eyeclose: [[1.3, 1.83, 0.36], [1.187, 1.847, 0.074]],
+  muzzle: [[1.62, 1.6, 0.42], [1.3, 1.52, 0.0]],
+  muzzleside: [[1.3, 1.55, 0.62], [1.29, 1.53, 0.0]],
+  muzzlefront: [[1.85, 1.5, 0.0], [1.31, 1.53, 0.0]],
+  ear: [[1.45, 2.15, 0.35], [1.12, 2.1, 0.06]],
   legs: [[0.6, 0.5, 2.6], [0.0, 0.45, 0]],
   hoof: [[1.2, 0.25, 0.9], [0.55, 0.1, 0.13]],
 };
@@ -79,8 +85,20 @@ if (params.has('skel')) {
   scene.add(helper);
 }
 window.__horse = horse;
+// ?flare=0..1 holds the nostrils flared
+if (params.has('flare')) horse.material.userData.uniforms.uFlare.value = parseFloat(params.get('flare'));
+// ?blink=0..1 holds the upper lids part-closed (0 open, 1 closed)
+if (params.has('blink')) {
+  const b = parseFloat(params.get('blink'));
+  horse.eyes.update(0, { headLook: { yaw: 0, tYaw: 0 }, standing: false });
+  horse.eyes.blink.next = 1e9;
+  horse.eyes.blink.t = 0.085;
+  horse.eyes.blink.amp = b;
+  horse.eyes.update(0.001, { headLook: { yaw: 0, tYaw: 0 }, standing: false });
+}
 const hair = params.has('nohair') ? null : new Hair(horse, { color: MANE_COLORS[params.get('coat') || 'chestnut'] });
 if (hair) scene.add(hair.group);
+const facial = params.has('nohair') ? null : addFacialHairs(horse);
 const sunDir = new THREE.Vector3().copy(sun.position).normalize().negate();
 let loco = null;
 if (params.has('gait')) {
@@ -110,6 +128,7 @@ if (params.has('gait')) {
 
 function frame() {
   controls.update();
+  if (facial) facial.update(camera);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }

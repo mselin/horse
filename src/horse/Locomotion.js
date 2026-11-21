@@ -160,6 +160,7 @@ export class Locomotion {
     this.jiggle = new Spring(); // soft tissue (belly, flanks) bouncing after footfalls
     this.headLook = { yaw: 0, pitch: 0, tYaw: 0, tPitch: 0, timer: 2 };
     this.ears = { l: 0, r: 0, tl: 0, tr: 0, timer: 1 };
+    this.breath = 0;
     this.swish = { t: 0, next: 3, dir: 1 };
     // idle: resting (cocked) hind leg after standing a while
     this.idleTime = 0;
@@ -354,8 +355,12 @@ export class Locomotion {
     // breathing: free at rest and slow gaits, locked one breath per stride at
     // canter and gallop (the gut acts as a piston on the diaphragm)
     const locked = p.surgeHarm < 1.5 ? mv : 0;
+    // breath: -1..1, positive while breathing in (drives the nostril flare)
+    this.breath = this.standing
+      ? Math.sin(this.time * 1.6)
+      : (1 - locked) * Math.sin(this.time * (4 + v * 0.3)) + locked * Math.sin(TAU * (this.phase - 0.25));
     const breathe = this.standing
-      ? Math.sin(this.time * 1.6) * 0.0025
+      ? this.breath * 0.0025
       : (1 - locked) * Math.sin(this.time * (4 + v * 0.3)) * 0.0015 + locked * Math.sin(TAU * (this.phase - 0.25)) * 0.003;
     this.jiggle.step(0, dt, 5.5, 0.22, -this.bodyAy * 0.35);
     const body = B.body;

@@ -55,7 +55,8 @@ neck topline ≈ 0.85 m.
 
 | Resource | Used for |
 | --- | --- |
-| [Merck Veterinary Manual: eye structure](https://www.merckvetmanual.com/horse-owners/eye-disorders-of-horses/eye-structure-and-function-in-horses); [Equine vision, Wikipedia](https://en.wikipedia.org/wiki/Equine_vision) | Horizontal oval pupil, *corpora nigra* on the upper pupil margin, laterally placed eyes (procedural eye texture in `Horse.js`) |
+| [Merck Veterinary Manual: eye structure](https://www.merckvetmanual.com/horse-owners/eye-disorders-of-horses/eye-structure-and-function-in-horses); [Equine vision, Wikipedia](https://en.wikipedia.org/wiki/Equine_vision) | Horizontal oval pupil, *corpora nigra* on the upper pupil margin, laterally placed eyes, third eyelid in the inner corner (procedural eye in `Eyes.js`) |
+| Merkies K., Ready C., Farkas L., Hodder A., "Eye Blink Rates and Eyelid Twitches as a Non-Invasive Measure of Stress in the Domestic Horse", *Animals* 9(8):562, 2019, DOI [10.3390/ani9080562](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6721043/) | Blink timing in `Eyes.js`: relaxed horses make about 8–9 full blinks a minute, plus half blinks; stress lowers both |
 | [Equine coat color](https://en.wikipedia.org/wiki/Equine_coat_color); [Bay](https://en.wikipedia.org/wiki/Bay_horse); [Chestnut](https://en.wikipedia.org/wiki/Chestnut_(horse_color)); [UC Davis VGL coat genetics](https://vgl.ucdavis.edu/node/3451) | Coat presets: bay = red body with black points; chestnut = no black hairs; plus black, dapple grey, palomino, buckskin. White markings: star, blaze, socks |
 
 ## 5. Rendering hair and fur

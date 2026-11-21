@@ -3,8 +3,9 @@
 // Assembles the baked mesh, skeleton, eyes and hair into a three.js object.
 
 import * as THREE from 'three';
-import { BONE_DEFS, EYE } from './rig.js';
-import { createCoatMaterial } from './coat.js';
+import { BONE_DEFS } from './rig.js';
+import { createCoatMaterial, COATS } from './coat.js';
+import { Eyes } from './Eyes.js';
 import { sculptKey, cacheGet, cachePut } from './cache.js';
 
 // Bake (or fetch from the IndexedDB cache) the horse mesh.
@@ -97,77 +98,13 @@ export class Horse {
     this.mesh = mesh;
     this.group.add(mesh);
 
-    this.addEyes();
+    this.eyes = new Eyes(this);
+    this.setCoatColors(coat);
   }
 
-  addEyes() {
-    const head = this.bones.head;
-    const rest = head.userData.rest;
-    const eyeGeo = new THREE.SphereGeometry(EYE.radius, 48, 32);
-    // Eyeball: very dark brown iris with a horizontal pupil, glossy cornea.
-    const tex = makeEyeTexture();
-    const mat = new THREE.MeshPhysicalMaterial({
-      map: tex,
-      roughness: 0.25,
-      clearcoat: 1,
-      clearcoatRoughness: 0.02,
-      ior: 1.376,
-    });
-    for (const s of [1, -1]) {
-      const eye = new THREE.Mesh(eyeGeo, mat);
-      eye.position.set(EYE.center[0] - rest[0], EYE.center[1] - rest[1], s * EYE.center[2] - rest[2]);
-      const dir = new THREE.Vector3(EYE.dir[0], EYE.dir[1], s * EYE.dir[2]);
-      // sphere UV: texture centre (u=0.5) faces -Z by default after this rotation
-      eye.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
-      eye.castShadow = false;
-      eye.receiveShadow = true;
-      head.add(eye);
-    }
+  // colours of the parts drawn outside the coat shader (the blinking lids)
+  setCoatColors(name) {
+    const c = COATS[name] ?? COATS.bay;
+    this.eyes.setColors(c.body, c.skin);
   }
-}
-
-function makeEyeTexture() {
-  const c = document.createElement('canvas');
-  c.width = 512;
-  c.height = 256;
-  const g = c.getContext('2d');
-  // Sphere UVs: u wraps around Y; the +Z pole region maps to u=0.25 (three.js default).
-  g.fillStyle = '#1a0f0a';
-  g.fillRect(0, 0, 512, 256);
-  const cx = 512 * 0.25, cy = 128;
-  const grad = g.createRadialGradient(cx, cy, 4, cx, cy, 90);
-  grad.addColorStop(0, '#050302');
-  grad.addColorStop(0.35, '#2b170c');
-  grad.addColorStop(0.75, '#3a2111');
-  grad.addColorStop(1, '#120a06');
-  g.fillStyle = grad;
-  g.beginPath();
-  g.ellipse(cx, cy, 95, 80, 0, 0, Math.PI * 2);
-  g.fill();
-  // iris fibres
-  for (let i = 0; i < 400; i++) {
-    const a = Math.random() * Math.PI * 2;
-    const r0 = 20 + Math.random() * 20, r1 = 60 + Math.random() * 30;
-    g.strokeStyle = `rgba(${70 + Math.random() * 40},${40 + Math.random() * 20},${20},0.25)`;
-    g.beginPath();
-    g.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0 * 0.85);
-    g.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1 * 0.85);
-    g.stroke();
-  }
-  // horizontal oval pupil
-  g.fillStyle = '#000';
-  g.beginPath();
-  g.ellipse(cx, cy, 40, 16, 0, 0, Math.PI * 2);
-  g.fill();
-  // corpora nigra along the top of the pupil
-  g.fillStyle = '#0b0603';
-  for (let i = 0; i < 3; i++) {
-    g.beginPath();
-    g.ellipse(cx - 14 + i * 14, cy - 15, 9, 6, 0, 0, Math.PI * 2);
-    g.fill();
-  }
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
-  return t;
 }

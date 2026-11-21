@@ -376,8 +376,10 @@ export class Hair {
       drag: 0.05,
       restDir: (r, t) => {
         // up over the poll, then lying down the forehead
-        const d0 = r.nrm.clone().multiplyScalar(0.7).add(u.clone().multiplyScalar(0.6)).normalize();
-        const d1 = u.clone().multiplyScalar(0.8).add(new THREE.Vector3(HEAD.v[0], HEAD.v[1], 0).multiplyScalar(-0.25)).add(new THREE.Vector3(0, 0, r.pos.z * 3)).normalize();
+        // (it lies on the face: aimed slightly into it, so the colliders hold it
+        // on the skin instead of letting it stand off)
+        const d0 = r.nrm.clone().multiplyScalar(0.55).add(u.clone().multiplyScalar(0.8)).normalize();
+        const d1 = u.clone().multiplyScalar(0.9).add(new THREE.Vector3(HEAD.v[0], HEAD.v[1], 0).multiplyScalar(0.12)).add(new THREE.Vector3(0, 0, r.pos.z * 2.5)).normalize();
         return d0.lerp(d1, Math.pow(t, 0.4)).normalize();
       },
     });
@@ -415,7 +417,7 @@ export class Hair {
         uPixelK: this.pixelK,
         uSpread: { value: opts.spread },
         uTipLight: this.tipLight,
-        uHairR: { value: 0.11 },
+        uHairR: { value: 0.085 },
         uHairTRT: { value: 0.12 },
         uHairTT: { value: 0.22 },
       };
@@ -504,7 +506,7 @@ export class Hair {
     for (let i = 0; i < 9 && cands.length; i++) {
       const [, v] = cands[Math.floor(rr() * cands.length)];
       if (fl.some((f) => Math.abs(f.pos.z - P[v * 3 + 2]) < 0.006 && Math.abs(f.pos.y - P[v * 3 + 1]) < 0.006)) continue;
-      fl.push(mk(v, { len: 0.13 + 0.05 * rr() }));
+      fl.push(mk(v, { len: 0.16 + 0.06 * rr() }));
     }
 
     // ---- tail: around the top and sides of the dock ----
@@ -573,8 +575,13 @@ export class Hair {
     }
     this.mane.addCollider(B.thorax, [0.4, 1.42, 0], 0.21);
     this.mane.addCollider(B.thorax, [0.5, 1.33, 0.0], 0.2);
-    this.forelock.addCollider(B.head, [HEAD.joint[0] + 0.15 * HEAD.u[0] - 0.0 * HEAD.v[0], HEAD.joint[1] + 0.15 * HEAD.u[1], 0], 0.075);
-    this.forelock.addCollider(B.head, [HEAD.joint[0] + 0.3 * HEAD.u[0] - 0.05 * HEAD.v[0], HEAD.joint[1] + 0.3 * HEAD.u[1] - 0.05 * HEAD.v[1], 0], 0.075);
+    // forehead and face: spheres whose tops sit ~3 mm above the skin along the
+    // midline (top-of-head profile measured from the sculpt: a, skin b)
+    const FR = 0.09;
+    for (const [a, top] of [[0.05, -0.072], [0.12, -0.061], [0.2, -0.059], [0.28, -0.045], [0.36, -0.03]]) {
+      const b = top - 0.003 + FR;
+      this.forelock.addCollider(B.head, [HEAD.joint[0] + a * HEAD.u[0] + b * HEAD.v[0], HEAD.joint[1] + a * HEAD.u[1] + b * HEAD.v[1], 0], FR);
+    }
     // tail: buttocks, thighs, hocks
     const tc = [
       ['pelvis', [-0.84, 1.3, 0.1], 0.14],

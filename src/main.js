@@ -296,6 +296,7 @@ fCoat
   .name('Coat colour')
   .onChange((v) => {
     setCoat(horse.material, v);
+    horse.setCoatColors(v);
     state.mane = MANE_COLORS[v];
     hair.setColor(state.mane);
     gui.controllersRecursive().forEach((c) => c.updateDisplay());
@@ -340,6 +341,11 @@ function updateCondition(dt) {
   u.uVeins.value = Math.min(1, state.veins + 0.6 * state.sweat);
   u.uDetail.value = state.hairDetail;
   u.uJiggle.value.set(0, loco.jiggle.x, 0);
+  // nostrils flare on each breath in: a little at rest, fully at the gallop
+  // and while blowing after work
+  const effort = Math.min(1, 0.12 + 0.55 * state.sweat + 0.8 * Math.max(0, Math.min(1, (v - 4) / 9)));
+  const inhale = THREE.MathUtils.smoothstep(loco.breath, -0.2, 1);
+  u.uFlare.value = effort * inhale;
 }
 
 // ---------------------------------------------------------------------------
@@ -401,6 +407,7 @@ function frame() {
   if (!state.demo) loco.steer += (steer - loco.steer) * Math.min(1, dt * 5);
 
   loco.update(dt);
+  horse.eyes.update(dt, loco);
   horse.group.updateMatrixWorld(true);
   vel.set(Math.cos(loco.yaw), 0, -Math.sin(loco.yaw)).multiplyScalar(loco.speed);
   if (state.hair) hair.update(dt, vel, world.sunDir.clone().negate(), camera, renderer.domElement.height);

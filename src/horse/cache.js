@@ -13,7 +13,7 @@ const FIELDS = ['positions', 'normals', 'indices', 'skinIndex', 'skinWeight', 't
 export function sculptKey(cell) {
   const json = JSON.stringify({
     cell,
-    v: 5, // bump whenever bake.js output changes
+    v: 6, // bump whenever bake.js output changes
     bones: BONE_DEFS,
     nodes: HORSE_NODES.map((n) => [n.def, n.k, n.op, n.stage, n.mat, n.hair, n.wk, n.name]),
     veins: VEINS,
