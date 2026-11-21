@@ -4,6 +4,8 @@ A realistic Thoroughbred, **sculpted, rigged, groomed and animated entirely in
 code**, running in the browser with three.js / WebGL2. No external meshes,
 textures or motion capture are used.
 
+**Live: https://mselin.github.io/horse/**
+
 ![Gallop, side tracking shot](docs/screenshots/gallop-side.jpg)
 
 | | |
@@ -44,7 +46,10 @@ the sculpt changes.
 A demo tour cycles through the gaits until you press a key. The panel has
 coat colours, white markings, time of day, mesh detail and a skeleton view.
 
-URL options: `?quality=low|medium|high`, `?coat=bay`, `?cam=cinematic`, `?nodemo`.
+URL options: `?quality=low|medium|high`, `?coat=bay`, `?cam=cinematic`, `?nodemo`,
+`?dirt=0..1`, `?sweat=0..1`. Close-up camera shots: `?cam=cinematic&shot=5` (eye),
+`6` (shoulder), `7` (fore legs), `8` (hindquarters), `9` (muzzle). The orbit
+camera zooms in to 30 cm.
 
 ## How it works
 
@@ -68,11 +73,27 @@ URL options: `?quality=low|medium|high`, `?coat=bay`, `?cam=cinematic`, `?nodemo
    come from how much each anatomical form contributes at a vertex, then
    diffused across the surface. Hair-flow tangents, ambient occlusion and
    curvature are baked from the distance field.
-4. **Coat** (`coat.js`): physical material with
-   - colour presets based on coat genetics
-   - black points and white markings painted on the rest-pose skin
-   - anisotropic highlights following the hair, plus sheen
-   - fine hair micro-relief and dapples
+4. **Coat** (`coat.js`, `FacialHairs.js`): physical material with
+   - colour presets based on coat genetics, black points and white markings
+     painted on the rest-pose skin
+   - **hair micro-detail**: tapered hair strands, overlapping like shingles,
+     scattered triplanar in skin space and oriented by the baked hair-flow
+     field. Gaps between strands are darker, each strand varies in colour and
+     reflects light like a cylinder. A coarser clump layer covers mid
+     distances. Both fade out with distance so they never shimmer. A whorl
+     sits on the forehead.
+   - **veins**: the facial, jugular, spur, cephalic and saphenous veins are
+     snapped onto the skin at bake time; a fine noise network covers the
+     belly, inner legs and face. Both are bump-mapped and stand out more with
+     exertion
+   - **condition**: dust builds up on the lower legs and belly with distance
+     travelled, with splatter. Sustained canter or gallop brings sweat, which
+     darkens and glosses the coat and clumps the hair, plus lather between
+     the hind legs, at the girth and along the neck. Sweat dries at rest
+   - eyelashes, muzzle whiskers and tactile hairs over the eyes, rooted on
+     the lid margin and lip skin
+   - anisotropic highlights across the hair, sheen, baked occlusion and
+     curvature
 5. **Locomotion** (`gaits.js`, `Locomotion.js`):
    - Footfall timing, duty factors and stride frequencies come from the
      literature.
@@ -104,6 +125,21 @@ The animation drives bones by name (`scap_L`, `radius_R`, `hcannon_L`, …),
 using planar IK in the parent frames. A sculpted and textured horse rigged to
 the same bone names and rest pose can replace the procedural mesh. The
 locomotion, hair and world code stay as they are.
+
+## Checks and publishing
+
+`.github/workflows/ci.yml` runs on every pull request and every push to `main`:
+
+| Job | What it checks |
+| --- | --- |
+| Site checks | HTML against the standard, with html-validate |
+| Build and browser smoke test | `npm run build`, then `npm run test:smoke`. The smoke test loads the built site in headless Chromium with software WebGL, bakes the horse, canters, renders a frame, and fails on any page or console error |
+| All checks passed | Succeeds only if every job above did. This is the check that merging requires |
+| Publish the horse | On `main` only, after all checks pass: deploys `dist/` with GitHub Pages to https://mselin.github.io/horse/ |
+
+`main` is protected by a ruleset. Every change goes in through a pull
+request, and it can merge only once **All checks passed** is green. Pushing
+straight to `main`, force-pushing and deleting the branch are blocked.
 
 `preview.html` is a development page for inspecting the sculpt
 (`?view=side|front|back|top|q34|head…`, `?gait=gallop&t=2`).
