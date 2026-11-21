@@ -42,6 +42,9 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
+      # Locomotion on the real skeleton, headless: reach error, planted-hoof
+      # slip, trunk acceleration, NaNs, settling after a halt.
+      - run: npm run test:motion
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       # Loads the built site in headless Chromium (software WebGL): the mesh bakes in its worker, the horse

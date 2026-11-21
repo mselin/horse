@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test:smoke": "node tests/smoke.mjs"
+    "test:smoke": "node tests/smoke.mjs",
+    "test:motion": "node tools/motion-check.mjs"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {

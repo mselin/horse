@@ -37,6 +37,8 @@ export const GAITS = {
     lumbar: 0.015,
     bodyDrop: 0.0,
     tailLift: 0.0,
+    surge: 0.03,
+    surgeHarm: 2,
     stanceShift: { F: 0.03, H: 0.03 },
   },
   trot: {
@@ -60,6 +62,8 @@ export const GAITS = {
     lumbar: 0.02,
     bodyDrop: 0.01,
     tailLift: 0.25,
+    surge: 0.025,
+    surgeHarm: 2,
     stanceShift: { F: 0.04, H: 0.03 },
   },
   canter: {
@@ -83,6 +87,8 @@ export const GAITS = {
     lumbar: 0.09,
     bodyDrop: 0.04,
     tailLift: 0.45,
+    surge: 0.05,
+    surgeHarm: 1,
     stanceShift: { F: 0.07, H: 0.1 },
   },
   gallop: {
@@ -106,6 +112,8 @@ export const GAITS = {
     lumbar: 0.13,
     bodyDrop: 0.08,
     tailLift: 0.6,
+    surge: 0.045,
+    surgeHarm: 1,
     stanceShift: { F: 0.1, H: 0.18 },
   },
 };
@@ -118,7 +126,7 @@ export const GAIT_DOWN = { trot: 1.9, canter: 4.6, gallop: 8.4 };
 
 const NUMERIC_KEYS = [
   'carpusFlex', 'fetlockFlex', 'fetlockExt', 'hockFlex', 'coffinFlex', 'breakover', 'scap',
-  'bob', 'pitch', 'roll', 'nod', 'neckCarriage', 'lumbar', 'bodyDrop', 'tailLift',
+  'bob', 'pitch', 'roll', 'nod', 'neckCarriage', 'lumbar', 'bodyDrop', 'tailLift', 'surge', 'surgeHarm',
 ];
 
 // Blend two gait parameter sets (phases blend along the shortest circular path).

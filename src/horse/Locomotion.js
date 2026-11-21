@@ -1,8 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Mika Selin
-// Procedural locomotion: footfall-driven leg state machines, planar two-bone
-// IK with gait-dependent distal joint folding, load-driven body motion, neck
-// nodding, spine flexion, tail carriage and ear "attention".
+// Procedural locomotion.
+//
+//  * Legs: footfall-driven stance/swing state machines. Hooves plant in world
+//    space; stance length adapts to speed so a leg is never asked to reach
+//    past its length; planar two-bone IK with a soft limit near full
+//    extension; distal joints (carpus, hock, fetlock, coffin) follow C2-smooth
+//    curves; the swing hoof reaches slightly past its landing spot and
+//    retracts before touchdown.
+//  * Body: loads on the legs drive a sprung trunk (bounce, pitch, roll, sway),
+//    a forward surge within each stride, lumbar flexion and lateral bending.
+//  * Neck, head and tail are cascades of springs, so motion travels along them
+//    with natural lag and overshoot (follow-through), and they react to the
+//    trunk's acceleration. The head is stabilised like a real horse's.
 
 import * as THREE from 'three';
 import { GAITS, GAIT_ORDER, GAIT_UP, GAIT_DOWN, LEGS, blendGait } from './gaits.js';
@@ -11,13 +21,45 @@ import { FORE, HIND } from './rig.js';
 const TAU = Math.PI * 2;
 const mod1 = (x) => ((x % 1) + 1) % 1;
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
-const smooth = (t) => t * t * (3 - 2 * t);
-const bump = (w, p, q = 1) => Math.pow(Math.max(0, Math.sin(Math.PI * Math.pow(clamp(w, 0, 1), p))), q);
+const smootherstep = (t) => {
+  t = clamp(t, 0, 1);
+  return t * t * t * (t * (t * 6 - 15) + 10);
+};
+// C2 bump: 0 at w=0 and w=1 with zero slope, 1 at `peak`
+const sbump = (w, peak) => (w <= 0 || w >= 1 ? 0 : w < peak ? smootherstep(w / peak) : smootherstep((1 - w) / (1 - peak)));
+// bump that is zero outside [a, b] and peaks at `peak`
+const sbumpIn = (w, a, peak, b) => (w <= a || w >= b ? 0 : w < peak ? smootherstep((w - a) / (peak - a)) : smootherstep((b - w) / (b - peak)));
+// soft limit: identity below `soft`, approaches `hard` asymptotically
+const softLimit = (x, soft, hard) => (x <= soft ? x : soft + (hard - soft) * (1 - Math.exp(-(x - soft) / (hard - soft))));
+const softClamp = (x, lo, hi) => {
+  const m = 0.15;
+  if (x > hi - m) return softLimit(x, hi - m, hi);
+  if (x < lo + m) return -softLimit(-x, -(lo + m), -lo);
+  return x;
+};
 const Z = new THREE.Vector3(0, 0, 1);
-const _q = new THREE.Quaternion();
 const _e = new THREE.Euler();
 const _m = new THREE.Matrix4();
 const _v = new THREE.Vector3();
+
+// Second-order follower (mass-spring-damper), sub-stepped for stability.
+class Spring {
+  constructor(x = 0) {
+    this.x = x;
+    this.v = 0;
+  }
+  step(target, dt, hz, zeta, force = 0) {
+    const w = TAU * hz;
+    const n = Math.max(1, Math.ceil(dt * 240));
+    const h = dt / n;
+    for (let i = 0; i < n; i++) {
+      const a = w * w * (target - this.x) - 2 * zeta * w * this.v + force;
+      this.v += a * h;
+      this.x += this.v * h;
+    }
+    return this.x;
+  }
+}
 
 class Leg {
   constructor(name, bones) {
@@ -40,17 +82,37 @@ class Leg {
     this.toeToCoffin = [L.coffin[0] - L.toe[0], L.coffin[1] - L.toe[1]];
     this.restCoffinLocal = new THREE.Vector3(L.coffin[0] - pr[0], L.coffin[1] - pr[1], L.coffin[2] * this.side - pr[2]);
 
+    // Reach model (root space): the pivot the leg swings about and the longest
+    // distance pivot -> coffin it can span.
+    const len = (a) => Math.hypot(a[0], a[1]);
+    if (this.fore) {
+      this.pivot = [L.shoulder[0], L.shoulder[1]];
+      const comp = [L.coffin[0] - L.elbow[0], L.coffin[1] - L.elbow[1]];
+      this.reach = len(this.v[1]) + len(comp);
+      this.reachBonus = 0.1; // the scapula rotates, carrying the shoulder joint with it
+    } else {
+      this.pivot = [L.hip[0], L.hip[1]];
+      const comp = [L.coffin[0] - L.stifle[0], L.coffin[1] - L.stifle[1]];
+      this.reach = len(this.v[0]) + len(comp);
+      this.reachBonus = 0.02;
+    }
+    this.restCoffinRel = L.coffin[0] - this.pivot[0];
+
     this.stance = true;
     this.hold = false;
     this.toe = new THREE.Vector3(); // planted toe (world)
     this.liftCoffin = new THREE.Vector3();
+    this.liftRel = new THREE.Vector3(); // lift-off coffin in the root (heading) frame
+    this.landRel = new THREE.Vector3(); // planned landing coffin in the root frame
     this.liftPitch = 0;
     this.landToe = new THREE.Vector3();
     this.coffinTarget = new THREE.Vector3();
-    this.hoofPitch = 0; // desired world pitch of the hoof (stance)
+    this.hoofPitch = 0;
     this.s = 0;
     this.w = 0;
     this.load = 0;
+    this.scap = new Spring();
+    this.psi = 0; // this leg's own position in its stride cycle (0..1, stance first)
   }
 }
 
@@ -62,7 +124,7 @@ export class Locomotion {
     this.legs = LEGS.map((n) => new Leg(n, horse.bones));
     this.legByName = Object.fromEntries(this.legs.map((l) => [l.name, l]));
 
-    this.speed = 0; // m/s actual
+    this.speed = 0; // m/s commanded (smoothed)
     this.targetSpeed = 0;
     this.steer = 0; // -1..1
     this.yaw = 0;
@@ -73,21 +135,38 @@ export class Locomotion {
     this.prevGait = GAITS.walk;
     this.gaitBlend = 1;
     this.params = blendGait(GAITS.walk, GAITS.walk, 1);
+    this.duty = { F: 0.6, H: 0.6 };
     this.standing = true;
     this.time = 0;
     this.listeners = [];
 
-    // secondary motion state
-    this.tailState = { a: 0, v: 0 };
+    // sprung body & chains
+    this.s = {
+      y: new Spring(),
+      pitch: new Spring(),
+      roll: new Spring(),
+      sway: new Spring(),
+      lean: new Spring(),
+      lumbar: new Spring(),
+      bend: new Spring(),
+      neck: [0, 1, 2, 3, 4].map(() => new Spring()),
+      neckYaw: [0, 1, 2, 3, 4].map(() => new Spring()),
+      head: new Spring(),
+      tail: [0, 1, 2, 3, 4, 5].map(() => new Spring()),
+      tailYaw: [0, 1, 2, 3, 4, 5].map(() => new Spring()),
+    };
+    this.prevBodyVy = 0;
+    this.bodyAy = 0;
+    this.jiggle = new Spring(); // soft tissue (belly, flanks) bouncing after footfalls
     this.headLook = { yaw: 0, pitch: 0, tYaw: 0, tPitch: 0, timer: 2 };
     this.ears = { l: 0, r: 0, tl: 0, tr: 0, timer: 1 };
-    this.lean = 0;
-    this.prevBodyY = 0;
+    this.swish = { t: 0, next: 3, dir: 1 };
     // idle: resting (cocked) hind leg after standing a while
     this.idleTime = 0;
     this.cock = 0;
     this.cockLeg = 'LH';
 
+    for (const leg of this.legs) leg.psi = mod1(-GAITS.walk.phase[leg.name]);
     this.resetFeet();
   }
 
@@ -113,34 +192,54 @@ export class Locomotion {
     else if (idx > 0 && v < GAIT_DOWN[this.gaitName]) name = GAIT_ORDER[idx - 1];
     if (this.forcedGait) name = this.forcedGait;
     if (name !== this.gaitName) {
-      // freeze the current blended parameters as the start of the new blend
       this.prevGait = { ...this.params, duty: { ...this.params.duty }, phase: { ...this.params.phase }, swingH: { ...this.params.swingH }, stanceShift: { ...this.params.stanceShift } };
       this.gaitName = name;
       this.gaitBlend = 0;
     }
   }
 
+  // Longest horizontal stance excursion (each way) a leg can make, given the
+  // trunk height. Fore legs gain a little from scapular rotation.
+  legReach(leg, drop) {
+    const h = leg.pivot[1] - drop - 0.055;
+    const R = leg.reach * 0.985;
+    return Math.sqrt(Math.max(0.01, R * R - h * h)) + leg.reachBonus;
+  }
+
   update(dt) {
     dt = Math.min(dt, 1 / 20);
     this.time += dt;
     const B = this.bones;
+    const S = this.s;
 
     // ---- speed / heading ----
-    const accel = this.targetSpeed > this.speed ? 3.2 : 4.5;
+    const accel = this.targetSpeed > this.speed ? 3.0 : 4.2;
     this.speed += clamp(this.targetSpeed - this.speed, -accel * dt, accel * dt);
     if (this.speed < 0.02 && this.targetSpeed === 0) this.speed = 0;
     const v = this.speed;
     const maxTurn = 1.3 / Math.max(1, v * 0.35);
     const targetYawRate = this.steer * maxTurn * clamp(v / 1.2, 0.35, 1);
-    this.yawRate += (targetYawRate - this.yawRate) * Math.min(1, dt * 3);
+    this.yawRate += (targetYawRate - this.yawRate) * Math.min(1, dt * 2.5);
     this.chooseGait(Math.max(v, 0.6));
 
     // ---- gait parameters ----
     const g = GAITS[this.gaitName];
-    this.gaitBlend = Math.min(1, this.gaitBlend + dt * 1.6);
-    const p = blendGait(this.prevGait, g, smooth(this.gaitBlend), this.params);
+    this.gaitBlend = Math.min(1, this.gaitBlend + dt * 1.25);
+    const p = blendGait(this.prevGait, g, smootherstep(this.gaitBlend), this.params);
     const fTarget = g.freq(clamp(Math.max(v, 0.9), g.speed[0], g.speed[1]));
-    this.freq += (fTarget - this.freq) * Math.min(1, dt * 4);
+    this.freq += (fTarget - this.freq) * Math.min(1, dt * 3);
+
+    // stance length that the legs can actually span at this speed
+    const drop = p.bodyDrop * clamp(v / 10, 0, 1);
+    for (const key of ['F', 'H']) {
+      const leg = key === 'F' ? this.legs[0] : this.legs[2];
+      const X = this.legReach(leg, drop);
+      const maxStance = 2 * X * 0.9;
+      const Dmax = v > 0.1 ? (maxStance * this.freq) / v : 1;
+      const want = Math.min(p.duty[key], Dmax);
+      this.duty[key] += (want - this.duty[key]) * Math.min(1, dt * 4);
+    }
+    const duty = this.duty;
 
     // standing / stopping logic
     const stopping = this.targetSpeed < 0.05 && v < 0.6;
@@ -155,24 +254,48 @@ export class Locomotion {
     if (moving) {
       this.standing = false;
       this.phase = mod1(this.phase + this.freq * dt);
+      // Each leg runs its own cycle. The footfall pattern of the current gait
+      // sets where it should be; a leg only catches up (or waits) while it is
+      // in the air, never while planted. Gait changes therefore happen within
+      // about one stride, leg by leg, instead of cross-fading two patterns.
+      for (const leg of this.legs) {
+        const target = mod1(this.phase - g.phase[leg.name]);
+        let err = target - leg.psi;
+        err -= Math.round(err);
+        const inSwing = leg.psi >= this.duty[leg.key];
+        const rate = inSwing ? clamp(1 + 2.5 * err, 0.55, 1.9) : 1;
+        leg.psi = mod1(leg.psi + this.freq * rate * dt);
+      }
     } else {
       this.standing = true;
       for (const leg of this.legs) if (leg.stance) leg.hold = true;
     }
+    const mv = moving ? clamp(v / 1.0, 0, 1) : 0;
 
-    // ---- root motion ----
+    // ---- root motion, with a small forward surge inside each stride ----
+    const surge = 1 + p.surge * mv * Math.sin(TAU * p.surgeHarm * (this.phase - 0.15));
     this.yaw += this.yawRate * dt;
     this.root.rotation.y = this.yaw;
     const fwd = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
-    this.root.position.addScaledVector(fwd, v * dt);
+    this.root.position.addScaledVector(fwd, v * surge * dt);
     this.root.updateMatrixWorld(true);
 
-    // ---- leg phases and footfalls ----
-    const loads = { F: 0, H: 0, L: 0, R: 0, all: 0 };
-    const lagPhase = this.phase - 0.04;
+    // ---- landing plans (root frame): centre each stance where the leg can span it ----
     for (const leg of this.legs) {
-      const D = p.duty[leg.key];
-      const psi = mod1(this.phase - p.phase[leg.name]);
+      const X = this.legReach(leg, drop);
+      const travel = moving ? (v * duty[leg.key]) / this.freq : 0;
+      const wantCentre = leg.restCoffinRel + (stopping ? 0 : p.stanceShift[leg.key] * mv);
+      const half = Math.min(travel / 2, X * 0.95);
+      const centre = clamp(wantCentre, -X + half, X - half);
+      leg.landRel.set(leg.pivot[0] + centre + half, leg.toeToCoffin[1], leg.restToe.z);
+      leg.landToe.set(leg.landRel.x - leg.toeToCoffin[0], 0, leg.restToe.z).applyMatrix4(this.root.matrixWorld);
+    }
+
+    // ---- leg phases, footfalls and loads ----
+    const loads = { F: 0, H: 0, L: 0, R: 0, all: 0 };
+    for (const leg of this.legs) {
+      const D = duty[leg.key];
+      const psi = leg.psi;
       const inStance = psi < D;
       if (inStance) {
         if (!leg.stance) {
@@ -189,22 +312,22 @@ export class Locomotion {
           if (!leg.hold) {
             leg.stance = false;
             leg.liftCoffin.copy(leg.coffinTarget);
+            leg.liftRel.copy(leg.coffinTarget);
+            this.root.worldToLocal(leg.liftRel);
             leg.liftPitch = leg.hoofPitch;
           }
         }
         leg.w = (psi - D) / (1 - D);
       }
-      // lagged load signal for body dynamics
-      const pl = mod1(lagPhase - p.phase[leg.name]);
-      const ld = pl < D && moving ? Math.sin((Math.PI * pl) / D) : 0;
+      // smooth (sin^2) load kernel: no kinks at touchdown or lift-off
+      const ld = inStance && moving ? Math.sin(Math.PI * leg.s) ** 2 : 0;
       leg.load = ld;
       loads[leg.key] += ld;
       loads[leg.side < 0 ? 'L' : 'R'] += ld;
       loads.all += ld;
     }
-    const meanAll = (2 / Math.PI) * 2 * (p.duty.F + p.duty.H);
-    const meanF = (2 / Math.PI) * 2 * p.duty.F;
-    const meanH = (2 / Math.PI) * 2 * p.duty.H;
+    const meanF = duty.F, meanH = duty.H; // two legs x mean(sin^2)=0.5 x duty
+    const meanAll = meanF + meanH;
 
     // ---- idle: cock a hind leg after a few seconds at rest ----
     if (this.standing) {
@@ -215,56 +338,70 @@ export class Locomotion {
     this.cock += (wantCock - this.cock) * Math.min(1, dt * (wantCock ? 1.2 : 6));
     const cockSide = this.cockLeg === 'LH' ? -1 : 1;
 
-    // ---- body pose ----
-    const mv = moving ? clamp(v / 1.0, 0, 1) : 0;
-    const bodyY = -p.bob * (loads.all - meanAll) * mv - p.bodyDrop * clamp(v / 10, 0, 1);
-    const pitch = p.pitch * (loads.H - meanH - (loads.F - meanF)) * 0.5 * mv;
-    const roll = p.roll * (loads.R - loads.L) * 0.5 * mv;
-    const turnLean = -clamp((v * this.yawRate) / 9.81, -0.5, 0.5) * 0.55;
-    this.lean += (turnLean - this.lean) * Math.min(1, dt * 4);
-    const breathe = Math.sin(this.time * (this.standing ? 1.6 : 4)) * 0.0025;
+    // ---- sprung trunk ----
+    const yT = -p.bob * 1.6 * (loads.all - meanAll) * mv - drop;
+    const pitchT = p.pitch * (loads.H - meanH - (loads.F - meanF)) * mv;
+    const rollT = p.roll * (loads.R - loads.L) * mv;
+    const swayT = 0.012 * (loads.R - loads.L) * mv * (p.surgeHarm > 1 ? 1 : 0.4);
+    const leanT = -clamp((v * this.yawRate) / 9.81, -0.5, 0.5) * 0.55;
+    const y = S.y.step(yT, dt, 3.2, 0.42);
+    const pitch = S.pitch.step(pitchT, dt, 2.6, 0.5);
+    const roll = S.roll.step(rollT, dt, 2.2, 0.5);
+    const sway = S.sway.step(swayT, dt, 1.8, 0.6);
+    const lean = S.lean.step(leanT, dt, 1.2, 0.8);
+    this.bodyAy = (S.y.v - this.prevBodyVy) / Math.max(dt, 1e-3);
+    this.prevBodyVy = S.y.v;
+    // breathing: free at rest and slow gaits, locked one breath per stride at
+    // canter and gallop (the gut acts as a piston on the diaphragm)
+    const locked = p.surgeHarm < 1.5 ? mv : 0;
+    const breathe = this.standing
+      ? Math.sin(this.time * 1.6) * 0.0025
+      : (1 - locked) * Math.sin(this.time * (4 + v * 0.3)) * 0.0015 + locked * Math.sin(TAU * (this.phase - 0.25)) * 0.003;
+    this.jiggle.step(0, dt, 5.5, 0.22, -this.bodyAy * 0.35);
     const body = B.body;
-    body.position.set(body.userData.restLocal.x, body.userData.restLocal.y + bodyY + breathe, body.userData.restLocal.z + roll * 0.4);
-    _e.set(roll + this.lean, 0, pitch, 'XYZ');
+    body.position.set(body.userData.restLocal.x, body.userData.restLocal.y + y + breathe, body.userData.restLocal.z + sway);
+    _e.set(roll + lean, 0, pitch, 'XYZ');
     body.quaternion.setFromEuler(_e);
 
-    // spine flexion (lumbosacral) – flexed as the hinds land, extended in fore stance
-    const lumb = p.lumbar * Math.cos(TAU * (this.phase - 0.02)) * mv;
-    B.lumbar.quaternion.setFromAxisAngle(Z, lumb * 0.4);
-    _e.set(cockSide * 0.06 * this.cock, 0, lumb * 0.6, 'XYZ');
+    // spine: lumbosacral flexion (flexed as the hinds come under) and lateral
+    // bending into turns
+    const lumbT = p.lumbar * Math.cos(TAU * (this.phase - 0.02)) * mv;
+    const lumb = S.lumbar.step(lumbT, dt, 3.0, 0.6);
+    const bend = S.bend.step(clamp(this.yawRate * 0.12, -0.12, 0.12) + 0.6 * (rollT - roll) * (p.surgeHarm > 1 ? 1 : 0), dt, 1.6, 0.7);
+    _e.set(0, bend * 0.5, lumb * 0.4, 'XYZ');
+    B.lumbar.quaternion.setFromEuler(_e);
+    _e.set(cockSide * 0.06 * this.cock, bend * 0.3, lumb * 0.6, 'XYZ');
     B.pelvis.quaternion.setFromEuler(_e);
-    B.thorax.quaternion.setFromAxisAngle(Z, -lumb * 0.25);
+    _e.set(0, bend * 0.4, -lumb * 0.25, 'XYZ');
+    B.thorax.quaternion.setFromEuler(_e);
 
-    // ---- neck & head ----
+    // ---- neck & head: spring cascade (a wave runs down the neck) ----
     this.updateHeadLook(dt, v);
-    const nod = -p.nod * (loads.F - meanF) * 0.5 * mv;
+    const nod = -p.nod * (loads.F - meanF) * mv;
     const carriage = p.neckCarriage * clamp(v / 6, 0, 1) - 0.04 * mv;
-    const neckPitch = carriage + nod + this.headLook.pitch;
+    const inertia = -0.004 * this.bodyAy; // neck lags the trunk's vertical acceleration
+    let target = carriage + nod + this.headLook.pitch + inertia;
+    let yawTarget = this.headLook.yaw + clamp(this.yawRate * 0.35, -0.35, 0.35) * clamp(v / 3, 0, 1);
     const nw = [0.34, 0.24, 0.17, 0.13, 0.12];
     const ny = [0.1, 0.2, 0.25, 0.25, 0.2];
+    const hz = [3.4, 3.0, 2.7, 2.5, 2.3];
+    let neckSum = 0;
     for (let i = 0; i < 5; i++) {
-      _e.set(0, this.headLook.yaw * ny[i], neckPitch * nw[i], 'YZX');
+      target = S.neck[i].step(target, dt, hz[i], 0.42);
+      yawTarget = S.neckYaw[i].step(yawTarget, dt, hz[i] * 0.7, 0.6);
+      neckSum += target * nw[i];
+      _e.set(0, yawTarget * ny[i], target * nw[i], 'YZX');
       B['neck' + i].quaternion.setFromEuler(_e);
     }
-    const comp = 0.55 - 0.3 * clamp((v - 5) / 8, 0, 1);
-    _e.set(0, this.headLook.yaw * 0.1, -neckPitch * comp + nod * 0.3 + 0.1 * clamp((v - 6) / 8, 0, 1), 'YZX');
+    // the head is stabilised: it counter-rotates most of the neck and trunk pitch
+    const comp = 0.62 - 0.32 * clamp((v - 5) / 8, 0, 1);
+    const headT = -(neckSum + pitch) * comp + nod * 0.25 + 0.1 * clamp((v - 6) / 8, 0, 1);
+    const head = S.head.step(headT, dt, 3.2, 0.55);
+    _e.set(0, yawTarget * 0.1, head, 'YZX');
     B.head.quaternion.setFromEuler(_e);
 
-    // ears
     this.updateEars(dt, v);
-
-    // tail carriage + spring
-    const ts = this.tailState;
-    const bodyVy = (bodyY - this.prevBodyY) / Math.max(dt, 1e-3);
-    this.prevBodyY = bodyY;
-    const tailTarget = -p.tailLift * clamp(v / 8, 0, 1) + (this.standing ? 0.04 * Math.sin(this.time * 0.7) : 0);
-    ts.v += ((tailTarget - ts.a) * 60 - ts.v * 9 + bodyVy * 6) * dt;
-    ts.a += ts.v * dt;
-    for (let i = 0; i < 6; i++) {
-      const k = i === 0 ? 0.6 : 0.12;
-      _e.set(0, Math.sin(this.time * 1.3 + i * 0.6) * 0.03 * (this.standing ? 1 : 0.3), ts.a * k - i * 0.01 * ts.v * 0.02, 'XYZ');
-      B['tail' + i].quaternion.setFromEuler(_e);
-    }
+    this.updateTail(dt, v, p, pitch);
 
     this.root.updateMatrixWorld(true);
 
@@ -272,28 +409,13 @@ export class Locomotion {
     const yaw = this.yaw;
     const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
     for (const leg of this.legs) {
-      const D = p.duty[leg.key];
+      const D = duty[leg.key];
       const Tst = D / this.freq;
-      // predicted landing spot
-      if (!leg.stance) {
-        const tRem = ((1 - leg.w) * (1 - D)) / this.freq;
-        const yawF = yaw + this.yawRate * tRem;
-        const ahead = (moving ? v * Tst * 0.5 : 0) + (stopping ? 0 : p.stanceShift[leg.key] * mv);
-        const lx = leg.restToe.x + ahead, lz = leg.restToe.z;
-        const cf = Math.cos(yawF), sf = Math.sin(yawF);
-        leg.landToe.set(
-          this.root.position.x + fwd.x * v * tRem + lx * cf + lz * sf,
-          0,
-          this.root.position.z + fwd.z * v * tRem - lx * sf + lz * cf
-        );
-      }
-
-      // coffin target + desired hoof pitch
-      let hoofAbs = null;
-      let swingRelCoffin = 0;
+      let hoofAbs = 0;
+      let blendRel = 0; // 0 = hoof pitch held in world space, 1 = relative swing flexion
       if (leg.stance) {
         const cocked = leg.name === this.cockLeg ? this.cock : 0;
-        const bo = leg.hold ? -0.6 * cocked : -p.breakover * smooth(clamp((leg.s - 0.62) / 0.38, 0, 1));
+        const bo = leg.hold ? -0.6 * cocked : -p.breakover * smootherstep((leg.s - 0.6) / 0.4);
         leg.hoofPitch = bo;
         const cx = leg.toeToCoffin[0] * Math.cos(bo) - leg.toeToCoffin[1] * Math.sin(bo);
         const cy = leg.toeToCoffin[0] * Math.sin(bo) + leg.toeToCoffin[1] * Math.cos(bo);
@@ -301,28 +423,36 @@ export class Locomotion {
         hoofAbs = bo;
       } else {
         const w = leg.w;
-        const landCoffin = _v.set(leg.landToe.x + leg.toeToCoffin[0] * cosY, leg.toeToCoffin[1], leg.landToe.z - leg.toeToCoffin[0] * sinY);
-        const e = smooth(clamp((w - 0.04) / 0.9, 0, 1));
-        leg.coffinTarget.lerpVectors(leg.liftCoffin, landCoffin, e);
-        // hind hooves travel forward low before lifting; fores lift early
-        const lift = leg.fore ? bump(w, 0.75, 1.1) : bump(w, 1.05, 1.3);
-        leg.coffinTarget.y += p.swingH[leg.key] * lift * clamp(v / 1.2 + 0.4, 0.4, 1);
-        swingRelCoffin = -p.coffinFlex * bump(w, 0.6);
-        if (w > 0.78) hoofAbs = 0.06 * bump((w - 0.78) / 0.22, 1);
-        if (w < 0.12) hoofAbs = leg.liftPitch * (1 - w / 0.12) - 0.4 * (w / 0.12);
-        leg.hoofPitch = hoofAbs ?? 0;
+        // swing planned in the root (heading) frame, from lift-off to the
+        // planned landing: both ends lie within the leg's reach
+        const e = smootherstep(w);
+        _v.lerpVectors(leg.liftRel, leg.landRel, e);
+        // Fore-aft: cubic Hermite whose end tangents carry part of the stance
+        // velocity (the hoof moves back at -v relative to the body while
+        // planted). The hoof follows through backward after lift-off, swings
+        // forward, overshoots and retracts onto the landing spot, so it meets
+        // the ground with little speed: swing-phase retraction.
+        const Tsw = (1 - duty[leg.key]) / this.freq;
+        const m = -v * Tsw * 0.55;
+        const w2 = w * w, w3 = w2 * w;
+        _v.x = (2 * w3 - 3 * w2 + 1) * leg.liftRel.x + (w3 - 2 * w2 + w) * m + (-2 * w3 + 3 * w2) * leg.landRel.x + (w3 - w2) * m;
+        _v.y += p.swingH[leg.key] * sbump(w, leg.fore ? 0.36 : 0.46) * clamp(v / 1.2 + 0.4, 0.4, 1);
+        leg.coffinTarget.copy(_v).applyMatrix4(this.root.matrixWorld);
+        // hoof pitch: from its lift-off angle to flat at touchdown, with the
+        // relative swing flexion blended in through mid-swing
+        hoofAbs = leg.liftPitch * (1 - smootherstep(w / 0.5)) + 0.05 * sbumpIn(w, 0.6, 0.85, 1);
+        blendRel = smootherstep(w / 0.2) * (1 - smootherstep((w - 0.7) / 0.25));
+        leg.hoofPitch = hoofAbs;
       }
 
-      this.solveLeg(leg, p, hoofAbs, swingRelCoffin);
+      this.solveLeg(leg, p, hoofAbs, blendRel);
     }
   }
 
-  solveLeg(leg, p, hoofAbs, swingRelCoffin) {
-    // target into parent-local space
+  solveLeg(leg, p, hoofAbs, blendRel) {
     leg.parent.updateWorldMatrix(true, false);
     _m.copy(leg.parent.matrixWorld).invert();
     const T = _v.copy(leg.coffinTarget).applyMatrix4(_m);
-    // parent world pitch (rotation of its X axis in the vertical plane)
     const e = leg.parent.matrixWorld.elements;
     const ax = new THREE.Vector3(e[0], e[1], e[2]).normalize();
     const parentPitch = Math.asin(clamp(ax.y, -1, 1));
@@ -332,20 +462,24 @@ export class Locomotion {
     const P = leg.P, V = leg.v;
     const hold = leg.hold;
 
-    // distal joint curves
+    // distal joint curves (C2-smooth through touchdown and lift-off)
     const cocked = leg.name === this.cockLeg ? this.cock : 0;
-    const fetlock = st ? (hold ? -0.55 * cocked : p.fetlockExt * Math.pow(Math.sin(Math.PI * s), 1.4)) : -p.fetlockFlex * bump(w, 0.55, 1.2);
+    const fetlock = st
+      ? hold
+        ? -0.55 * cocked
+        : p.fetlockExt * Math.sin(Math.PI * s) ** 2
+      : -p.fetlockFlex * sbump(w, 0.36);
     const roll = clamp(-Math.atan2(T.z - leg.restCoffinLocal.z, Math.max(0.3, P[0][1] - T.y)), -0.25, 0.25);
+    const relCoffin = -p.coffinFlex * sbump(w, 0.32);
 
     if (leg.fore) {
-      const carpus = st ? 0 : -p.carpusFlex * bump(w, 0.62, 1.25);
+      const carpus = st ? 0 : -p.carpusFlex * sbump(w, 0.42);
       const dxN = T.x - leg.restCoffinLocal.x;
-      const scap = clamp((p.scap * dxN) / 0.65, -0.4, 0.45);
+      const scap = leg.scap.step(clamp((p.scap * dxN) / 0.65, -0.4, 0.45), 1 / 60, 6, 0.9);
       const A0 = scap;
       const [v0, v1, v2, v3, v4] = V;
       const Sx = P[0][0] + v0[0] * Math.cos(A0) - v0[1] * Math.sin(A0);
       const Sy = P[0][1] + v0[0] * Math.sin(A0) + v0[1] * Math.cos(A0);
-      // composite elbow -> coffin in radius frame
       const c1 = Math.cos(carpus), s1 = Math.sin(carpus);
       const c2 = Math.cos(carpus + fetlock), s2 = Math.sin(carpus + fetlock);
       const Ex = v2[0] + v3[0] * c1 - v3[1] * s1 + v4[0] * c2 - v4[1] * s2;
@@ -356,17 +490,10 @@ export class Locomotion {
       setZ(leg.bones[2], a2 - a1);
       setZ(leg.bones[3], carpus);
       setZ(leg.bones[4], fetlock);
-      const absBeforeHoof = a2 + carpus + fetlock;
-      let coffin;
-      if (hoofAbs !== null) coffin = hoofAbs - parentPitch - absBeforeHoof;
-      if (!st) {
-        const rel = swingRelCoffin;
-        coffin = hoofAbs === null ? rel : coffin;
-      }
-      setZ(leg.bones[5], clamp(coffin, -1.7, 0.6));
+      const abs = hoofAbs - parentPitch - (a2 + carpus + fetlock);
+      setZ(leg.bones[5], softClamp(abs * (1 - blendRel) + relCoffin * blendRel, -1.7, 0.6));
     } else {
-      const hockStance = st && !hold ? 0.14 * p.hockFlex * Math.sin(Math.PI * s) : 0;
-      const hock = st ? hockStance : p.hockFlex * bump(w, 0.85, 1.25);
+      const hock = st ? (hold ? 0 : 0.14 * p.hockFlex * Math.sin(Math.PI * s) ** 2) : p.hockFlex * sbump(w, 0.46);
       const [v0, v1, v2, v3] = V;
       const c1 = Math.cos(hock), s1 = Math.sin(hock);
       const c2 = Math.cos(hock + fetlock), s2 = Math.sin(hock + fetlock);
@@ -377,9 +504,39 @@ export class Locomotion {
       setZ(leg.bones[1], a2 - a1);
       setZ(leg.bones[2], hock);
       setZ(leg.bones[3], fetlock);
-      const absBeforeHoof = a2 + hock + fetlock;
-      let coffin = hoofAbs !== null ? hoofAbs - parentPitch - absBeforeHoof : swingRelCoffin;
-      setZ(leg.bones[4], clamp(coffin, -1.7, 0.6));
+      const abs = hoofAbs - parentPitch - (a2 + hock + fetlock);
+      setZ(leg.bones[4], softClamp(abs * (1 - blendRel) + relCoffin * blendRel, -1.7, 0.6));
+    }
+  }
+
+  // Tail: a cascade of springs (pitch and yaw) so it trails and whips; it is
+  // carried higher with speed, bounces with the trunk and swishes at rest.
+  updateTail(dt, v, p, bodyPitch) {
+    const S = this.s;
+    const sw = this.swish;
+    sw.next -= dt;
+    let swishT = 0;
+    if (this.standing && sw.next <= 0) {
+      sw.t = 1.1;
+      sw.dir = Math.random() < 0.5 ? -1 : 1;
+      sw.next = 3 + Math.random() * 6;
+    }
+    if (sw.t > 0) {
+      sw.t -= dt;
+      swishT = sw.dir * 0.55 * Math.sin(Math.PI * (1 - sw.t / 1.1)) * Math.sin(TAU * (1 - sw.t / 1.1) * 0.9);
+    }
+    const lift = -p.tailLift * clamp(v / 8, 0, 1);
+    let tgt = lift - bodyPitch * 0.8;
+    const walkSway = p.surgeHarm > 1.5 ? 0.1 * clamp(v / 1.2, 0, 1) * (1 - clamp((v - 2) / 3, 0, 1)) : 0;
+    let ytgt = swishT - this.yawRate * 0.25 * clamp(v / 4, 0, 1) + walkSway * Math.sin(TAU * this.phase);
+    const force = 0.06 * this.bodyAy; // trunk bounce kicks the tail
+    for (let i = 0; i < 6; i++) {
+      const hz = 3.0 - i * 0.3;
+      const k = i === 0 ? 0.6 : 0.12;
+      tgt = S.tail[i].step(tgt, dt, hz, 0.35, i === 0 ? force : 0);
+      ytgt = S.tailYaw[i].step(ytgt, dt, hz * 0.8, 0.4);
+      _e.set(0, ytgt * (i === 0 ? 0.35 : 0.13), tgt * k, 'XYZ');
+      this.bones['tail' + i].quaternion.setFromEuler(_e);
     }
   }
 
@@ -392,9 +549,8 @@ export class Locomotion {
       h.tPitch = idle ? (Math.random() - 0.6) * 0.25 : (Math.random() - 0.5) * 0.05;
       h.timer = idle ? 2 + Math.random() * 4 : 1.5 + Math.random() * 2;
     }
-    const steerLook = this.steer * 0.25 * clamp(v / 3, 0, 1);
-    const k = Math.min(1, dt * 1.6);
-    h.yaw += (h.tYaw + steerLook - h.yaw) * k;
+    const k = Math.min(1, dt * 1.2);
+    h.yaw += (h.tYaw - h.yaw) * k;
     h.pitch += (h.tPitch - h.pitch) * k;
   }
 
@@ -435,21 +591,21 @@ function setZ(bone, angle, roll = 0) {
 
 // Planar two-bone IK. Bone 1 rest vector v1 starts at (sx,sy); bone 2's rest
 // vector (composite) is e2. bend = -1 puts the middle joint behind the line
-// (elbow), +1 in front (stifle). Returns absolute rotations of both bones.
+// (elbow), +1 in front (stifle). Near full extension the reach is softened so
+// the limb eases straight instead of snapping. Returns absolute rotations.
 function twoBone(sx, sy, tx, ty, v1, e2, bend) {
   const L1 = Math.hypot(v1[0], v1[1]);
   const L2 = Math.hypot(e2[0], e2[1]);
-  let dx = tx - sx, dy = ty - sy;
-  let d = Math.hypot(dx, dy);
+  const dx = tx - sx, dy = ty - sy;
+  const d = Math.hypot(dx, dy);
   const dmin = Math.abs(L1 - L2) + 1e-4, dmax = L1 + L2 - 1e-4;
-  const dc = clamp(d, dmin, dmax);
+  const dc = Math.max(dmin, softLimit(d, dmax * 0.965, dmax));
   const phi = Math.atan2(dy, dx);
   const cosA = clamp((L1 * L1 + dc * dc - L2 * L2) / (2 * L1 * dc), -1, 1);
   const alpha = Math.acos(cosA);
   const b1 = phi + bend * alpha;
   const a1 = b1 - Math.atan2(v1[1], v1[0]);
   const mx = sx + L1 * Math.cos(b1), my = sy + L1 * Math.sin(b1);
-  // aim bone 2 at the (possibly clamped) target
   const ex = sx + dx * (dc / Math.max(d, 1e-6)), ey = sy + dy * (dc / Math.max(d, 1e-6));
   const b2 = Math.atan2(ey - my, ex - mx);
   const a2 = b2 - Math.atan2(e2[1], e2[0]);
