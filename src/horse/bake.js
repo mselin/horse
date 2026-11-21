@@ -3,10 +3,10 @@
 
 import { Field, OP_ADD } from './sdf.js';
 import { polygonize } from './mesher.js';
-import { HORSE_NODES, NUM_BONES } from './anatomy.js';
+import { HORSE_NODES, NUM_BONES, VEINS, WHORL } from './anatomy.js';
 
-export const BOUNDS_MIN = [-1.12, -0.01, -0.36];
-export const BOUNDS_MAX = [1.48, 2.1, 0.36];
+export const BOUNDS_MIN = [-1.14, -0.01, -0.37];
+export const BOUNDS_MAX = [1.62, 2.36, 0.37];
 
 export function bakeHorse({ cell = 0.0075, onProgress } = {}) {
   const t0 = now();
@@ -82,6 +82,26 @@ export function bakeHorse({ cell = 0.0075, onProgress } = {}) {
   smoothAttr(MATS, 4, adj, 2, 0.5);
   smoothAttr(HAIR, 3, adj, 6, 0.6);
 
+  // ---- forehead whorl: hair spirals around a point ----
+  {
+    const [cx, cy, cz] = WHORL.center;
+    for (let v = 0; v < V; v++) {
+      const dx = P[v * 3] - cx, dy = P[v * 3 + 1] - cy, dz = P[v * 3 + 2] - cz;
+      const d = Math.hypot(dx, dy, dz);
+      if (d > WHORL.radius) continue;
+      const nx = N[v * 3], ny = N[v * 3 + 1], nz = N[v * 3 + 2];
+      // tangential (swirl) + slight outward component
+      let sx = ny * dz - nz * dy, sy = nz * dx - nx * dz, sz = nx * dy - ny * dx;
+      const sl = Math.hypot(sx, sy, sz) || 1;
+      const t = 1 - d / WHORL.radius;
+      const w = t * t * (3 - 2 * t);
+      const hl = Math.hypot(HAIR[v * 3], HAIR[v * 3 + 1], HAIR[v * 3 + 2]) || 1;
+      HAIR[v * 3] = (HAIR[v * 3] / hl) * (1 - w) + (sx / sl * 0.85 + dx / (d + 1e-4) * 0.15) * w;
+      HAIR[v * 3 + 1] = (HAIR[v * 3 + 1] / hl) * (1 - w) + (sy / sl * 0.85 + dy / (d + 1e-4) * 0.15) * w;
+      HAIR[v * 3 + 2] = (HAIR[v * 3 + 2] / hl) * (1 - w) + (sz / sl * 0.85 + dz / (d + 1e-4) * 0.15) * w;
+    }
+  }
+
   // ---- top-4 skin weights ----
   const skinIndex = new Uint16Array(V * 4);
   const skinWeight = new Float32Array(V * 4);
@@ -135,6 +155,9 @@ export function bakeHorse({ cell = 0.0075, onProgress } = {}) {
     tangent[v * 4 + 3] = 1;
   }
 
+  // ---- superficial veins: closest point on the nearest vein, per vertex ----
+  const vein = bakeVeins(field, P, V);
+
   // ---- ambient occlusion + curvature from the distance field ----
   const aoCurv = new Float32Array(V * 2);
   for (let v = 0; v < V; v++) {
@@ -175,6 +198,7 @@ export function bakeHorse({ cell = 0.0075, onProgress } = {}) {
     tangent,
     mats: MATS,
     aoCurv,
+    vein,
     stats: { ...mesh.stats, meshMs: Math.round(t1 - t0), attrMs: Math.round(t2 - t1) },
   };
 }
@@ -229,3 +253,73 @@ function smoothAttr(A, stride, adj, iters, lambda) {
     A.set(tmp);
   }
 }
+
+function bakeVeins(field, P, V) {
+  // densify each vein with Catmull-Rom and snap the samples onto the skin
+  const segs = [];
+  const g = [0, 0, 0];
+  for (const vein of VEINS) {
+    const c = vein.pts;
+    const pts = [];
+    for (let i = 0; i < c.length - 1; i++) {
+      const p0 = c[Math.max(0, i - 1)], p1 = c[i], p2 = c[i + 1], p3 = c[Math.min(c.length - 1, i + 2)];
+      for (let s = 0; s < 6; s++) {
+        const t = s / 6, t2 = t * t, t3 = t2 * t;
+        const q = [0, 1, 2].map((k) => 0.5 * (2 * p1[k] + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3));
+        // a little meander
+        const m = 0.0035 * Math.sin((i * 6 + s) * 1.7 + c.length);
+        q[1] += m;
+        q[0] += m * 0.5;
+        pts.push(q);
+      }
+    }
+    pts.push(c[c.length - 1].slice());
+    for (const q of pts) {
+      for (let it = 0; it < 6; it++) {
+        const d = field.eval(q[0], q[1], q[2]);
+        field.gradient(q[0], q[1], q[2], 0.002, g);
+        q[0] -= g[0] * d;
+        q[1] -= g[1] * d;
+        q[2] -= g[2] * d;
+      }
+    }
+    // taper radius toward the ends
+    for (let i = 0; i < pts.length - 1; i++) {
+      const t = i / (pts.length - 2);
+      const taper = Math.min(1, Math.min(t, 1 - t) * 5 + 0.25);
+      segs.push([pts[i], pts[i + 1], vein.r * taper]);
+    }
+  }
+  const out = new Float32Array(V * 4);
+  const R = 0.05;
+  for (let v = 0; v < V; v++) {
+    const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
+    let best = R * R, bp = null, br = 0;
+    for (const [a, b, r] of segs) {
+      const abx = b[0] - a[0], aby = b[1] - a[1], abz = b[2] - a[2];
+      const l2 = abx * abx + aby * aby + abz * abz;
+      let t = ((x - a[0]) * abx + (y - a[1]) * aby + (z - a[2]) * abz) / l2;
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const cx = a[0] + abx * t, cy = a[1] + aby * t, cz = a[2] + abz * t;
+      const d = (x - cx) ** 2 + (y - cy) ** 2 + (z - cz) ** 2;
+      if (d < best) {
+        best = d;
+        bp = [cx, cy, cz];
+        br = r;
+      }
+    }
+    if (bp) {
+      out[v * 4] = bp[0];
+      out[v * 4 + 1] = bp[1];
+      out[v * 4 + 2] = bp[2];
+      out[v * 4 + 3] = br;
+    } else {
+      out[v * 4] = x;
+      out[v * 4 + 1] = y + 1; // far away: no vein
+      out[v * 4 + 2] = z;
+      out[v * 4 + 3] = 0;
+    }
+  }
+  return out;
+}
+

@@ -74,6 +74,7 @@ export class Horse {
     g.setAttribute('skinWeight', new THREE.BufferAttribute(baked.skinWeight, 4));
     g.setAttribute('mats', new THREE.BufferAttribute(baked.mats, 4));
     g.setAttribute('aoCurv', new THREE.BufferAttribute(baked.aoCurv, 2));
+    g.setAttribute('vein', new THREE.BufferAttribute(baked.vein, 4));
     g.setAttribute('restPos', new THREE.BufferAttribute(baked.positions.slice(), 3));
     g.setIndex(new THREE.BufferAttribute(baked.indices, 1));
     g.computeBoundingSphere();

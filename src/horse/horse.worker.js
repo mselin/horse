@@ -15,6 +15,7 @@ self.onmessage = (e) => {
     result.tangent.buffer,
     result.mats.buffer,
     result.aoCurv.buffer,
+    result.vein.buffer,
   ];
   self.postMessage({ type: 'done', result }, transfer);
 };

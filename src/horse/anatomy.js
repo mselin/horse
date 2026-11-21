@@ -594,3 +594,37 @@ nodes.sort((a, b) => a.stage - b.stage);
 export const HORSE_NODES = nodes;
 export const NUM_BONES = NB;
 export { MAT };
+
+// ===========================================================================
+//  SUPERFICIAL VEINS (right side; mirrored). Control points are rough – the
+//  bake snaps them onto the skin. r = visible radius (m).
+// ===========================================================================
+const veinDefs = [
+  // facial vein: jaw angle up along the front of the masseter toward the eye
+  { r: 0.0032, pts: [H(0.12, 0.2, 0.06), H(0.19, 0.16, 0.085), H(0.25, 0.1, 0.085), H(0.31, 0.07, 0.075), H(0.37, 0.062, 0.066)] },
+  // transverse facial branch under the facial crest
+  { r: 0.0022, pts: [H(0.22, 0.09, 0.09), H(0.17, 0.065, 0.09), H(0.12, 0.06, 0.08)] },
+  // jugular vein in the jugular groove
+  { r: 0.0045, pts: [[1.0, 1.72, 0.07], [0.93, 1.56, 0.11], [0.85, 1.42, 0.13], [0.78, 1.3, 0.14], [0.72, 1.2, 0.14]] },
+  // superficial thoracic ("spur") vein along the lower barrel
+  { r: 0.0042, pts: [[0.36, 0.98, 0.2], [0.22, 0.95, 0.23], [0.06, 0.95, 0.25], [-0.1, 0.99, 0.25], [-0.26, 1.04, 0.23], [-0.38, 1.08, 0.2]] },
+  // lateral thoracic branch over the ribs behind the elbow
+  { r: 0.0028, pts: [[0.3, 1.02, 0.22], [0.24, 1.1, 0.24], [0.14, 1.16, 0.25], [0.02, 1.2, 0.26]] },
+  // cephalic vein, front-inside of the forearm
+  { r: 0.0035, pts: [[0.58, 1.0, 0.1], [0.53, 0.88, 0.1], [0.505, 0.76, 0.1], [0.495, 0.64, 0.1], [0.49, 0.53, 0.1]] },
+  // accessory cephalic on the front of the forearm
+  { r: 0.0025, pts: [[0.52, 0.86, 0.15], [0.515, 0.74, 0.16], [0.5, 0.6, 0.15]] },
+  // medial saphenous vein, inside of the hind leg
+  { r: 0.0035, pts: [[-0.58, 0.9, 0.1], [-0.63, 0.8, 0.09], [-0.68, 0.7, 0.09], [-0.71, 0.6, 0.1], [-0.725, 0.52, 0.1]] },
+  // lateral saphenous over the gaskin
+  { r: 0.0026, pts: [[-0.66, 0.86, 0.19], [-0.7, 0.76, 0.17], [-0.74, 0.65, 0.15]] },
+  // small vein over the point of shoulder toward the neck
+  { r: 0.0024, pts: [[0.7, 1.16, 0.15], [0.66, 1.26, 0.16], [0.62, 1.36, 0.15]] },
+];
+export const VEINS = [];
+for (const v of veinDefs) {
+  VEINS.push({ r: v.r, pts: v.pts });
+  VEINS.push({ r: v.r, pts: v.pts.map(M) });
+}
+// Forehead hair whorl (cowlick) – centre on the skin of the forehead
+export const WHORL = { center: headPt(0.2, -0.068, 0), radius: 0.045 };
