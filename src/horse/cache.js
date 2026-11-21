@@ -1,19 +1,21 @@
 // IndexedDB cache for baked meshes, keyed by a hash of the sculpt definition,
 // so the multi-second bake only runs when the anatomy actually changes.
 
-import { HORSE_NODES } from './anatomy.js';
+import { HORSE_NODES, VEINS, WHORL } from './anatomy.js';
 import { BONE_DEFS } from './rig.js';
 
 const DB = 'horse-bake-cache';
 const STORE = 'meshes';
-const FIELDS = ['positions', 'normals', 'indices', 'skinIndex', 'skinWeight', 'tangent', 'mats', 'aoCurv'];
+const FIELDS = ['positions', 'normals', 'indices', 'skinIndex', 'skinWeight', 'tangent', 'mats', 'aoCurv', 'vein'];
 
 export function sculptKey(cell) {
   const json = JSON.stringify({
     cell,
-    v: 3,
+    v: 4,
     bones: BONE_DEFS,
     nodes: HORSE_NODES.map((n) => [n.def, n.k, n.op, n.stage, n.mat, n.hair, n.wk, n.name]),
+    veins: VEINS,
+    whorl: WHORL,
   });
   // FNV-1a 32 bit, twice with different seeds
   let h1 = 0x811c9dc5, h2 = 0x01000193 ^ 0x5bd1e995;

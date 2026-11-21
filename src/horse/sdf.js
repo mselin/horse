@@ -326,3 +326,31 @@ export class Loft {
     return Math.min(1, Math.max(0, (x - this.x0) / (this.x1 - this.x0)));
   }
 }
+
+// Elliptical torus (ring) – used for the rolled eyelid rim around the eyeball.
+// Local frame: x/y span the ring plane (y squashed by `yScale`), z is the ring
+// axis (gaze direction). m: row-major local->world basis.
+export class Torus {
+  constructor(c, m, R, r, yScale = 1) {
+    this.c = c;
+    this.m = m;
+    this.R = R;
+    this.r = r;
+    this.ys = yScale;
+    this.bc = c;
+    this.br = R + r;
+    this.axis = [m[0], m[3], m[6]];
+  }
+  eval(x, y, z) {
+    const m = this.m;
+    const dx = x - this.c[0], dy = y - this.c[1], dz = z - this.c[2];
+    const lx = m[0] * dx + m[3] * dy + m[6] * dz;
+    const ly = (m[1] * dx + m[4] * dy + m[7] * dz) / this.ys;
+    const lz = m[2] * dx + m[5] * dy + m[8] * dz;
+    const qx = Math.hypot(lx, ly) - this.R;
+    return (Math.hypot(qx, lz) - this.r) * Math.min(1, this.ys);
+  }
+  param(x, y, z) {
+    return 0.5;
+  }
+}

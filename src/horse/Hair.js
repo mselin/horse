@@ -314,7 +314,7 @@ const HAIR_VERT_MAIN = /* glsl */ `
 `;
 
 export class Hair {
-  constructor(horse, { color = '#120d0b', scene } = {}) {
+  constructor(horse, { color = '#120d0b', density = 1 } = {}) {
     this.horse = horse;
     this.group = new THREE.Group();
     this.group.name = 'Hair';
@@ -326,15 +326,15 @@ export class Hair {
     this.mane = new GuideGroup(horse, roots.mane, {
       points: 10,
       segLen: 0.03,
-      stiffRoot: 0.35,
-      stiffTip: 0.012,
+      stiffRoot: 0.3,
+      stiffTip: 0.008,
       damping: 0.96,
       drag: 0.05,
       restDir: (r, t) => {
         // lies over to the off (right) side and falls down the neck
-        const d0 = new THREE.Vector3().copy(r.nrm).multiplyScalar(0.25).add(new THREE.Vector3(-0.25, -0.15, 1.0)).normalize();
-        const d1 = new THREE.Vector3(-0.15, -1, 0.06).normalize();
-        return d0.lerp(d1, Math.pow(t, 0.45)).normalize();
+        const d0 = new THREE.Vector3().copy(r.nrm).multiplyScalar(0.35).add(new THREE.Vector3(-0.2, 0.0, 1.0)).normalize();
+        const d1 = new THREE.Vector3(-0.18, -1, 0.22).normalize();
+        return d0.lerp(d1, Math.pow(t, 0.55)).normalize();
       },
     });
     // --- forelock ---
@@ -342,14 +342,15 @@ export class Hair {
     this.forelock = new GuideGroup(horse, roots.forelock, {
       points: 10,
       segLen: 0.025,
-      stiffRoot: 0.4,
-      stiffTip: 0.02,
+      stiffRoot: 0.22,
+      stiffTip: 0.01,
       damping: 0.96,
       drag: 0.05,
       restDir: (r, t) => {
-        const d0 = r.nrm.clone().multiplyScalar(0.8).add(u.clone().multiplyScalar(0.5)).normalize();
-        const d1 = u.clone().add(new THREE.Vector3(0, 0, r.pos.z * 2)).normalize();
-        return d0.lerp(d1, Math.pow(t, 0.5)).normalize();
+        // up over the poll, then lying down the forehead
+        const d0 = r.nrm.clone().multiplyScalar(0.7).add(u.clone().multiplyScalar(0.6)).normalize();
+        const d1 = u.clone().multiplyScalar(0.8).add(new THREE.Vector3(HEAD.v[0], HEAD.v[1], 0).multiplyScalar(-0.25)).add(new THREE.Vector3(0, 0, r.pos.z * 3)).normalize();
+        return d0.lerp(d1, Math.pow(t, 0.4)).normalize();
       },
     });
     // --- tail ---
@@ -399,10 +400,10 @@ export class Hair {
       this.meshes.push(mesh);
     };
     const seqNeighbour = (G) => (g, r) => Math.min(G - 1, Math.max(0, g + (r() < 0.5 ? -1 : 1)));
-    makeMesh(this.mane, { count: 5200, width: 0.0028, seed: 1, neighbours: seqNeighbour(this.mane.G), spread: 0.012, clumpTip: 0.35, wave: 0.004, lenJitter: 0.3, colorJitter: 0.35 });
-    makeMesh(this.forelock, { count: 700, width: 0.002, seed: 2, neighbours: seqNeighbour(this.forelock.G), spread: 0.012, clumpTip: 0.3, wave: 0.003, lenJitter: 0.35, colorJitter: 0.35 });
+    makeMesh(this.mane, { count: Math.round(7000 * density), width: 0.003, seed: 1, neighbours: seqNeighbour(this.mane.G), spread: 0.012, clumpTip: 0.25, wave: 0.004, lenJitter: 0.3, colorJitter: 0.35 });
+    makeMesh(this.forelock, { count: Math.round(700 * density), width: 0.002, seed: 2, neighbours: seqNeighbour(this.forelock.G), spread: 0.012, clumpTip: 0.3, wave: 0.003, lenJitter: 0.35, colorJitter: 0.35 });
     const tailNb = this.tailNeighbours();
-    makeMesh(this.tail, { count: 8000, width: 0.003, seed: 3, neighbours: (g, r) => tailNb[g][Math.floor(r() * tailNb[g].length)], spread: 0.014, clumpTip: 0.4, wave: 0.006, lenJitter: 0.35, colorJitter: 0.3 });
+    makeMesh(this.tail, { count: Math.round(8000 * density), width: 0.0034, seed: 3, neighbours: (g, r) => tailNb[g][Math.floor(r() * tailNb[g].length)], spread: 0.02, clumpTip: 0.22, wave: 0.006, lenJitter: 0.35, colorJitter: 0.3 });
   }
 
   setColor(hex) {
@@ -451,7 +452,7 @@ export class Hair {
       if (best[b] < 0) continue;
       const t = b / bins;
       if (t > 0.93) continue; // bridle path behind the ears
-      const len = 0.2 + 0.1 * Math.sin(Math.PI * Math.min(1, t * 1.15)) + 0.03 * Math.sin(b * 2.7);
+      const len = 0.24 + 0.12 * Math.sin(Math.PI * Math.min(1, t * 1.15)) + 0.035 * Math.sin(b * 2.7);
       mane.push(mk(best[b], { len }));
     }
 
@@ -462,10 +463,15 @@ export class Hair {
     for (let v = 0; v < V; v++) {
       const dx = P[v * 3] - fc.x, dy = P[v * 3 + 1] - fc.y, dz = P[v * 3 + 2];
       const d = Math.hypot(dx, dy, dz);
-      if (d < 0.035 && Math.abs(dz) < 0.03) cands.push([d, v]);
+      if (d < 0.05 && Math.abs(dz) < 0.04 && Nn[v * 3 + 1] > 0.2) cands.push([d, v]);
     }
-    cands.sort((a, b) => a[0] - b[0]);
-    for (let i = 0; i < Math.min(6, cands.length); i += 1) fl.push(mk(cands[i * 3 % cands.length][1], { len: 0.17 + 0.03 * (i % 2) }));
+    // spread roots across the poll between the ears
+    const rr = rng(5);
+    for (let i = 0; i < 9 && cands.length; i++) {
+      const [, v] = cands[Math.floor(rr() * cands.length)];
+      if (fl.some((f) => Math.abs(f.pos.z - P[v * 3 + 2]) < 0.006 && Math.abs(f.pos.y - P[v * 3 + 1]) < 0.006)) continue;
+      fl.push(mk(v, { len: 0.13 + 0.05 * rr() }));
+    }
 
     // ---- tail: around the top and sides of the dock ----
     const tailBones = new Set(['tail0', 'tail1', 'tail2', 'tail3', 'tail4', 'tail5'].map((n) => this.horse.skeleton.bones.findIndex((b) => b.name === n)));
@@ -508,17 +514,31 @@ export class Hair {
 
   addColliders() {
     const B = this.horse.bones;
-    // neck: spheres along the neck axis sized to the neck's half-width
-    const neck = [
-      ['neck0', [0.6, 1.42, 0], 0.16],
-      ['neck1', [0.68, 1.52, 0], 0.14],
-      ['neck2', [0.77, 1.63, 0], 0.125],
-      ['neck3', [0.85, 1.73, 0], 0.11],
-      ['neck4', [0.93, 1.83, 0], 0.1],
-      ['thorax', [0.5, 1.4, 0], 0.19],
-      ['thorax', [0.38, 1.42, 0.0], 0.2],
+    // neck: the cross-section is a tall oval, so stack spheres from the neck
+    // axis up toward the crest, each sized to the local half-width
+    const base = [0.56, 1.36], top = [1.0, 1.9];
+    const d = [top[0] - base[0], top[1] - base[1]];
+    const L = Math.hypot(d[0], d[1]);
+    d[0] /= L;
+    d[1] /= L;
+    const n = [-d[1], d[0]];
+    const st = [
+      [0.05, 0.29, 0.175, 'neck0'],
+      [0.22, 0.235, 0.148, 'neck1'],
+      [0.4, 0.195, 0.126, 'neck2'],
+      [0.58, 0.165, 0.11, 'neck3'],
+      [0.76, 0.142, 0.097, 'neck4'],
+      [0.92, 0.128, 0.088, 'neck4'],
     ];
-    for (const [b, p, r] of neck) this.mane.addCollider(B[b], p, r);
+    for (const [s, ht, hw, b] of st) {
+      for (const f of [0.0, 0.35, 0.62]) {
+        const off = f * ht + 0.01;
+        const c = [base[0] + d[0] * s * L + n[0] * off, base[1] + d[1] * s * L + n[1] * off, 0];
+        this.mane.addCollider(B[b], c, hw * (f === 0.62 ? 0.82 : 1.0) + 0.004);
+      }
+    }
+    this.mane.addCollider(B.thorax, [0.4, 1.42, 0], 0.21);
+    this.mane.addCollider(B.thorax, [0.5, 1.33, 0.0], 0.2);
     this.forelock.addCollider(B.head, [HEAD.joint[0] + 0.15 * HEAD.u[0] - 0.0 * HEAD.v[0], HEAD.joint[1] + 0.15 * HEAD.u[1], 0], 0.075);
     this.forelock.addCollider(B.head, [HEAD.joint[0] + 0.3 * HEAD.u[0] - 0.05 * HEAD.v[0], HEAD.joint[1] + 0.3 * HEAD.u[1] - 0.05 * HEAD.v[1], 0], 0.075);
     // tail: buttocks, thighs, hocks

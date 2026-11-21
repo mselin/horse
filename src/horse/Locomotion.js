@@ -81,6 +81,10 @@ export class Locomotion {
     this.ears = { l: 0, r: 0, tl: 0, tr: 0, timer: 1 };
     this.lean = 0;
     this.prevBodyY = 0;
+    // idle: resting (cocked) hind leg after standing a while
+    this.idleTime = 0;
+    this.cock = 0;
+    this.cockLeg = 'LH';
 
     this.resetFeet();
   }
@@ -200,6 +204,15 @@ export class Locomotion {
     const meanF = (2 / Math.PI) * 2 * p.duty.F;
     const meanH = (2 / Math.PI) * 2 * p.duty.H;
 
+    // ---- idle: cock a hind leg after a few seconds at rest ----
+    if (this.standing) {
+      if (this.idleTime === 0) this.cockLeg = Math.random() < 0.5 ? 'LH' : 'RH';
+      this.idleTime += dt;
+    } else this.idleTime = 0;
+    const wantCock = this.idleTime > 3 ? 1 : 0;
+    this.cock += (wantCock - this.cock) * Math.min(1, dt * (wantCock ? 1.2 : 6));
+    const cockSide = this.cockLeg === 'LH' ? -1 : 1;
+
     // ---- body pose ----
     const mv = moving ? clamp(v / 1.0, 0, 1) : 0;
     const bodyY = -p.bob * (loads.all - meanAll) * mv - p.bodyDrop * clamp(v / 10, 0, 1);
@@ -216,7 +229,8 @@ export class Locomotion {
     // spine flexion (lumbosacral) – flexed as the hinds land, extended in fore stance
     const lumb = p.lumbar * Math.cos(TAU * (this.phase - 0.02)) * mv;
     B.lumbar.quaternion.setFromAxisAngle(Z, lumb * 0.4);
-    B.pelvis.quaternion.setFromAxisAngle(Z, lumb * 0.6);
+    _e.set(cockSide * 0.06 * this.cock, 0, lumb * 0.6, 'XYZ');
+    B.pelvis.quaternion.setFromEuler(_e);
     B.thorax.quaternion.setFromAxisAngle(Z, -lumb * 0.25);
 
     // ---- neck & head ----
@@ -276,7 +290,8 @@ export class Locomotion {
       let hoofAbs = null;
       let swingRelCoffin = 0;
       if (leg.stance) {
-        const bo = leg.hold ? 0 : -p.breakover * smooth(clamp((leg.s - 0.62) / 0.38, 0, 1));
+        const cocked = leg.name === this.cockLeg ? this.cock : 0;
+        const bo = leg.hold ? -0.6 * cocked : -p.breakover * smooth(clamp((leg.s - 0.62) / 0.38, 0, 1));
         leg.hoofPitch = bo;
         const cx = leg.toeToCoffin[0] * Math.cos(bo) - leg.toeToCoffin[1] * Math.sin(bo);
         const cy = leg.toeToCoffin[0] * Math.sin(bo) + leg.toeToCoffin[1] * Math.cos(bo);
@@ -287,7 +302,9 @@ export class Locomotion {
         const landCoffin = _v.set(leg.landToe.x + leg.toeToCoffin[0] * cosY, leg.toeToCoffin[1], leg.landToe.z - leg.toeToCoffin[0] * sinY);
         const e = smooth(clamp((w - 0.04) / 0.9, 0, 1));
         leg.coffinTarget.lerpVectors(leg.liftCoffin, landCoffin, e);
-        leg.coffinTarget.y += p.swingH[leg.key] * bump(w, 0.75, 1.1) * clamp(v / 1.2 + 0.4, 0.4, 1);
+        // hind hooves travel forward low before lifting; fores lift early
+        const lift = leg.fore ? bump(w, 0.75, 1.1) : bump(w, 1.05, 1.3);
+        leg.coffinTarget.y += p.swingH[leg.key] * lift * clamp(v / 1.2 + 0.4, 0.4, 1);
         swingRelCoffin = -p.coffinFlex * bump(w, 0.6);
         if (w > 0.78) hoofAbs = 0.06 * bump((w - 0.78) / 0.22, 1);
         if (w < 0.12) hoofAbs = leg.liftPitch * (1 - w / 0.12) - 0.4 * (w / 0.12);
@@ -314,7 +331,8 @@ export class Locomotion {
     const hold = leg.hold;
 
     // distal joint curves
-    const fetlock = st ? (hold ? 0 : p.fetlockExt * Math.pow(Math.sin(Math.PI * s), 1.4)) : -p.fetlockFlex * bump(w, 0.55, 1.2);
+    const cocked = leg.name === this.cockLeg ? this.cock : 0;
+    const fetlock = st ? (hold ? -0.55 * cocked : p.fetlockExt * Math.pow(Math.sin(Math.PI * s), 1.4)) : -p.fetlockFlex * bump(w, 0.55, 1.2);
     const roll = clamp(-Math.atan2(T.z - leg.restCoffinLocal.z, Math.max(0.3, P[0][1] - T.y)), -0.25, 0.25);
 
     if (leg.fore) {
@@ -346,7 +364,7 @@ export class Locomotion {
       setZ(leg.bones[5], clamp(coffin, -1.7, 0.6));
     } else {
       const hockStance = st && !hold ? 0.14 * p.hockFlex * Math.sin(Math.PI * s) : 0;
-      const hock = st ? hockStance : p.hockFlex * bump(w, 0.62, 1.1);
+      const hock = st ? hockStance : p.hockFlex * bump(w, 0.85, 1.25);
       const [v0, v1, v2, v3] = V;
       const c1 = Math.cos(hock), s1 = Math.sin(hock);
       const c2 = Math.cos(hock + fetlock), s2 = Math.sin(hock + fetlock);

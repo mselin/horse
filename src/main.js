@@ -12,18 +12,25 @@ import { Locomotion } from './horse/Locomotion.js';
 import { Hair } from './horse/Hair.js';
 import { COATS, MANE_COLORS, setCoat } from './horse/coat.js';
 import { World } from './world/World.js';
+import { addFacialHairs } from './horse/FacialHairs.js';
 import { Hoofbeats } from './audio.js';
 
 const params = new URLSearchParams(location.search);
-const QUALITY = { low: 0.012, medium: 0.009, high: 0.0075 };
-const quality = params.get('quality') || 'medium';
-const cell = QUALITY[quality] ?? QUALITY.medium;
+// mesh cell size (m), hair density, grass blades, shadow map, max pixel ratio
+const QUALITY = {
+  low: { cell: 0.012, hair: 0.5, grass: 30000, shadow: 2048, dpr: 1 },
+  medium: { cell: 0.009, hair: 0.8, grass: 60000, shadow: 4096, dpr: 1.5 },
+  high: { cell: 0.0075, hair: 1, grass: 90000, shadow: 4096, dpr: 2 },
+};
+const quality = QUALITY[params.get('quality')] ? params.get('quality') : 'medium';
+const Q = QUALITY[quality];
+const cell = Q.cell;
 
 // ---------------------------------------------------------------------------
 // Renderer & post-processing
 // ---------------------------------------------------------------------------
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: params.has('sim') });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.setPixelRatio(Math.min(devicePixelRatio, Q.dpr));
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.62;
@@ -35,7 +42,7 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.05, 5000);
 camera.position.set(4.5, 1.6, 5.5);
 
-const world = new World(renderer, scene);
+const world = new World(renderer, scene, { grass: Q.grass, shadowSize: Q.shadow });
 
 const rt = new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: 4 });
 const composer = new EffectComposer(renderer, rt);
@@ -92,7 +99,7 @@ const state = {
   sockRF: false,
   sockLH: true,
   sockRH: false,
-  timeOfDay: 0.075,
+  timeOfDay: 0.045,
   exposure: 0.62,
   camera: params.get('cam') || 'orbit',
   demo: !params.has('nodemo'),
@@ -100,12 +107,18 @@ const state = {
   skeleton: false,
   hair: true,
   quality,
+  dirt: +(params.get('dirt') ?? 0.12),
+  sweat: +(params.get('sweat') ?? 0),
+  autoCondition: !params.has('dirt') && !params.has('sweat'),
+  hairDetail: 1,
+  veins: 0.5,
 };
 
 const horse = new Horse(baked, { coat: state.coat });
 scene.add(horse.group);
 const loco = new Locomotion(horse);
-const hair = new Hair(horse, { color: state.mane });
+const hair = new Hair(horse, { color: state.mane, density: Q.hair });
+const facial = addFacialHairs(horse);
 scene.add(hair.group);
 const skeletonHelper = new THREE.SkeletonHelper(horse.mesh);
 skeletonHelper.visible = false;
@@ -131,13 +144,13 @@ applyMarkings();
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.minDistance = 1.2;
+controls.minDistance = 0.3;
 controls.maxDistance = 30;
 controls.maxPolarAngle = Math.PI * 0.495;
 controls.target.set(0, 1.2, 0);
 const focus = new THREE.Vector3(0, 1.2, 0);
 const lastFocus = focus.clone();
-const cine = { shot: 0, t: 0, pos: new THREE.Vector3(), look: new THREE.Vector3() };
+const cine = { shot: +(params.get('shot') ?? 0), t: 0, off: new THREE.Vector3(), look: new THREE.Vector3(), yaw: 0, cut: true };
 const SHOTS = [
   { dur: 7, off: [0.6, 0.9, 4.2], look: [0.2, 1.1, 0], fov: 32 }, // low side tracking
   { dur: 6, off: [5.5, 1.3, 2.2], look: [0.3, 1.2, 0], fov: 30 }, // leading 3/4 front
@@ -145,11 +158,22 @@ const SHOTS = [
   { dur: 5, off: [1.9, 1.75, 1.2], look: [1.0, 1.65, 0], fov: 28 }, // head close-up
   { dur: 7, off: [2.0, 0.45, -3.4], look: [0, 0.6, 0], fov: 36 }, // legs, low
 ];
+// Close-ups (not in the automatic cycle; ?shot=5..9)
+const CLOSE = [
+  { off: [1.5, 1.95, 0.5], look: [1.2, 1.87, 0.07], fov: 24 }, // eye
+  { off: [1.15, 1.35, 1.05], look: [0.42, 1.18, 0.12], fov: 26 }, // shoulder & barrel
+  { off: [1.05, 0.45, 0.85], look: [0.45, 0.32, 0.1], fov: 26 }, // fore legs & hooves
+  { off: [-1.6, 1.15, 0.55], look: [-0.85, 1.0, 0.0], fov: 26 }, // hindquarters from behind
+  { off: [1.75, 1.55, 0.9], look: [1.28, 1.55, 0.05], fov: 24 }, // muzzle
+];
 function updateCamera(dt) {
   const body = horse.bones.body.getWorldPosition(new THREE.Vector3());
   const target = body.clone();
   target.y = 1.15;
-  focus.lerp(target, Math.min(1, dt * 6));
+  // follow exactly in the ground plane, smooth only the vertical bob
+  focus.x = target.x;
+  focus.z = target.z;
+  focus.y += (target.y - focus.y) * Math.min(1, dt * 4);
   if (state.camera === 'orbit') {
     const delta = focus.clone().sub(lastFocus);
     camera.position.add(delta);
@@ -158,35 +182,42 @@ function updateCamera(dt) {
     controls.update();
   } else {
     controls.enabled = false;
-    const yaw = loco.yaw;
-    const toWorld = (o) => new THREE.Vector3(o[0], o[1], o[2]).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).add(new THREE.Vector3(focus.x, 0, focus.z));
+    // camera offsets live in the horse's frame; smooth the offset and the
+    // heading separately so the horse never runs out of shot
+    let dy = loco.yaw - cine.yaw;
+    dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     let shot;
     if (state.camera === 'side') shot = SHOTS[0];
     else {
       cine.t += dt;
-      if (cine.t > SHOTS[cine.shot].dur) {
+      if (!params.has('shot') && cine.t > SHOTS[cine.shot].dur) {
         cine.t = 0;
         cine.shot = (cine.shot + 1) % SHOTS.length;
         cine.cut = true;
       }
-      shot = SHOTS[cine.shot];
+      shot = cine.shot >= SHOTS.length ? { ...CLOSE[cine.shot - SHOTS.length], dur: 6 } : SHOTS[cine.shot];
     }
     const drift = Math.sin(cine.t * 0.3) * 0.4;
-    const desired = toWorld([shot.off[0] + drift, shot.off[1], shot.off[2]]);
-    const look = toWorld(shot.look);
+    const off = new THREE.Vector3(shot.off[0] + drift, shot.off[1], shot.off[2]);
+    const lk = new THREE.Vector3(...shot.look);
     if (cine.cut) {
-      cine.pos.copy(desired);
-      cine.look.copy(look);
+      cine.off.copy(off);
+      cine.look.copy(lk);
+      cine.yaw = loco.yaw;
       cine.cut = false;
     }
-    cine.pos.lerp(desired, Math.min(1, dt * 2.5));
-    cine.look.lerp(look, Math.min(1, dt * 5));
-    camera.position.copy(cine.pos);
+    cine.yaw += dy * Math.min(1, dt * 1.5);
+    cine.off.lerp(off, Math.min(1, dt * 1.5));
+    cine.look.lerp(lk, Math.min(1, dt * 3));
+    const up = new THREE.Vector3(0, 1, 0);
+    const base = new THREE.Vector3(focus.x, 0, focus.z);
+    camera.position.copy(cine.off).applyAxisAngle(up, cine.yaw).add(base);
+    const lookW = cine.look.clone().applyAxisAngle(up, cine.yaw).add(base);
     camera.position.y = Math.max(0.25, camera.position.y);
-    camera.lookAt(cine.look);
+    camera.lookAt(lookW);
     camera.fov += (shot.fov - camera.fov) * Math.min(1, dt * 2);
     camera.updateProjectionMatrix();
-    controls.target.copy(cine.look);
+    controls.target.copy(lookW);
   }
   lastFocus.copy(focus);
 }
@@ -238,7 +269,7 @@ function updateDemo(dt) {
     demo.i = (demo.i + 1) % demo.seq.length;
   }
   setGaitIndex(demo.seq[demo.i][0]);
-  loco.steer = Math.sin(performance.now() * 0.00012) * 0.35;
+  loco.steer = demo.seq[demo.i][0] === 0 ? 0 : Math.sin(performance.now() * 0.00012) * 0.35;
 }
 
 // ---------------------------------------------------------------------------
@@ -270,6 +301,12 @@ fCoat
 fCoat.addColor(state, 'mane').name('Mane & tail').onChange((v) => hair.setColor(v));
 for (const [k, n] of [['star', 'Star'], ['blaze', 'Blaze'], ['sockLF', 'Sock near fore'], ['sockRF', 'Sock off fore'], ['sockLH', 'Sock near hind'], ['sockRH', 'Sock off hind']])
   fCoat.add(state, k).name(n).onChange(applyMarkings);
+const fCond = gui.addFolder('Condition');
+fCond.add(state, 'autoCondition').name('Auto (sweat & dust)');
+fCond.add(state, 'dirt', 0, 1, 0.01).name('Dust & dirt').listen();
+fCond.add(state, 'sweat', 0, 1, 0.01).name('Sweat').listen();
+fCond.add(state, 'veins', 0, 1, 0.01).name('Veins');
+fCond.add(state, 'hairDetail', 0, 1, 0.01).name('Coat hair detail');
 const fLook = gui.addFolder('Light & render');
 fLook.add(state, 'timeOfDay', 0.04, 0.96, 0.01).name('Time of day').onFinishChange((v) => world.setTimeOfDay(v));
 fLook.add(state, 'exposure', 0.4, 2, 0.01).name('Exposure').onChange((v) => (renderer.toneMappingExposure = v));
@@ -283,6 +320,24 @@ fLook
     location.search = params.toString();
   });
 if (innerWidth < 700) gui.close();
+
+// ---------------------------------------------------------------------------
+// Condition: dust builds with distance travelled; sweat builds with sustained
+// canter/gallop and dries at rest; veins stand out with exertion.
+// ---------------------------------------------------------------------------
+function updateCondition(dt) {
+  const v = loco.speed;
+  if (state.autoCondition) {
+    state.dirt = Math.min(0.85, state.dirt + v * dt * 0.0007);
+    if (v > 5) state.sweat = Math.min(1, state.sweat + dt * ((v - 5) / 9) / 35);
+    else state.sweat = Math.max(0, state.sweat - dt / (v < 0.5 ? 70 : 110));
+  }
+  const u = horse.material.userData.uniforms;
+  u.uDirt.value = state.dirt;
+  u.uSweat.value = state.sweat;
+  u.uVeins.value = Math.min(1, state.veins + 0.6 * state.sweat);
+  u.uDetail.value = state.hairDetail;
+}
 
 // ---------------------------------------------------------------------------
 // Main loop
@@ -308,6 +363,7 @@ if (params.has('sim')) {
     horse.group.updateMatrixWorld(true);
     vel.set(Math.cos(loco.yaw), 0, -Math.sin(loco.yaw)).multiplyScalar(loco.speed);
     hair.update(1 / 60, vel, world.sunDir.clone().negate());
+    updateCondition(1 / 60);
     updateCamera(1 / 60);
     world.update(1 / 60, focus, horse.group.position, camera);
   }
@@ -331,6 +387,8 @@ function frame() {
   horse.group.updateMatrixWorld(true);
   vel.set(Math.cos(loco.yaw), 0, -Math.sin(loco.yaw)).multiplyScalar(loco.speed);
   if (state.hair) hair.update(dt, vel, world.sunDir.clone().negate());
+  updateCondition(dt);
+  facial.update(camera);
   updateCamera(dt);
   world.update(dt, focus, horse.group.position, camera);
   grade.uniforms.uTime.value = clock.getElapsed();
@@ -339,6 +397,10 @@ function frame() {
   hudSpeed.textContent = `${(loco.speed * 3.6).toFixed(0)} km/h`;
 
   composer.render();
+  if (params.has('still')) {
+    window.__stillDone = true;
+    return;
+  }
   requestAnimationFrame(frame);
 }
 frame();

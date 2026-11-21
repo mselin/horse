@@ -85,13 +85,13 @@ export const SPINE = {
 // Ear base & direction in world (right side).
 export const EAR = {
   base: headPt(-0.012, -0.054, 0.048),
-  dir: [0.22, 0.95, 0.22],
-  length: 0.15,
+  dir: [0.22, 0.95, 0.2],
+  length: 0.16,
 };
 
 export const EYE = {
-  center: headPt(0.18, -0.013, 0.084),
-  radius: 0.025,
+  center: headPt(0.178, -0.012, 0.074),
+  radius: 0.026,
   // gaze direction (world, right eye)
   dir: (() => {
     const d = headDir(0.35, -0.12, 0.93);
