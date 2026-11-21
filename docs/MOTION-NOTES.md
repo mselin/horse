@@ -65,6 +65,7 @@ could not be fetched from the build environment.
 
 ### Gait footage
 
+- **Owner's pick:** horse motion footage chosen as a reference for this project: https://www.youtube.com/watch?v=lgV1CB8Zhf4. The build environment can't fetch YouTube, so the clip hasn't been reviewed against the animation yet.
 - Britannica gallop clip, four-beat racing gallop: https://www.britannica.com/topic/gallop/images-videos [V]
 - University of Nebraska slow-motion gaits with leg wraps, which make the footfall order easy to see: https://mediahub.unl.edu/media/24357 [V]
 - American Museum of Natural History, walk, trot and gallop flipbooks: https://amnh.org/explore/ology/zoology/horse-gaits-flipbooks-walk-trot-and-gallop [V]
