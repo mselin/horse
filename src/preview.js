@@ -124,6 +124,30 @@ if (params.has('gait')) {
   sun.target.position.copy(off);
   scene.add(sun.target);
   window.__loco = loco;
+  // window.__step(dt): advance the animation, keep the camera framing, render,
+  // and return the frame (for gait captures compared against footage)
+  const last = horse.group.position.clone();
+  window.__step = (dt) => {
+    loco.update(dt);
+    horse.group.updateMatrixWorld(true);
+    vel.set(Math.cos(loco.yaw), 0, -Math.sin(loco.yaw)).multiplyScalar(loco.speed);
+    if (hair) hair.update(dt, vel, sunDir);
+    const d = horse.group.position.clone().sub(last);
+    last.copy(horse.group.position);
+    camera.position.add(d);
+    controls.target.add(d);
+    ground.position.x += d.x;
+    ground.position.z += d.z;
+    sun.position.add(d);
+    sun.target.position.add(d);
+    controls.update();
+    renderer.render(scene, camera);
+    return {
+      img: renderer.domElement.toDataURL('image/png'),
+      phase: loco.phase,
+      stance: Object.fromEntries(loco.legs.map((l) => [l.name, l.stance])),
+    };
+  };
 }
 
 function frame() {

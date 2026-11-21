@@ -7,12 +7,12 @@ reference material to compare it against.
 
 | Layer | File | What it does |
 | --- | --- | --- |
-| Gait data | `src/horse/gaits.js` | For each gait: footfall phase of each leg, duty factor, stride frequency against speed, swing height, joint-flexion amplitudes, trunk and neck amplitudes, surge. Values from the literature in `RESOURCES.md` |
+| Gait data | `src/horse/gaits.js` | For each gait: footfall phase of each leg, duty factor at the slow and fast end of the gait's speed range, stride frequency against speed, swing height, joint-flexion amplitudes, trunk and neck amplitudes, surge, and for canter and gallop the stride phase of the rocking. Values from the literature in `RESOURCES.md`; canter timing measured from footage (`VIDEO-REFERENCE.md`) |
 | Leg timing | `Locomotion.js` | Each leg runs its own cycle. The current gait sets where each leg *should* be, and a leg only catches up or waits while it is in the air, so gaits change within about a stride, leg by leg, instead of cross-fading two footfall patterns |
 | Stance | `Locomotion.js` | The hoof is planted in world space; breakover pivots it about the toe at the end of stance. Stance length adapts to speed so the stance never needs more reach than the leg has (stance time shortens with speed, swing time stays about constant, as in real horses) |
 | Swing | `Locomotion.js` | Planned in the horse's heading frame, from lift-off to the planned landing. The fore-aft path is a cubic Hermite curve: the hoof follows through backward, swings forward, overshoots a little and **retracts** onto the landing spot. Lift is a C2-smooth bump |
 | Legs | `Locomotion.js` | Planar two-bone IK (shoulder–elbow, hip–stifle) with the distal joints (carpus, hock, fetlock, coffin) folding on C2-smooth curves. Near full extension the reach is softened so a leg eases straight instead of snapping |
-| Trunk | `Locomotion.js` | The loads on the legs drive second-order springs for bounce, pitch, roll and sway, so the trunk behaves like a sprung mass with lag and overshoot. A small forward surge happens within each stride, plus lumbosacral flexion and lateral bending in turns |
+| Trunk | `Locomotion.js` | The loads on the legs drive second-order springs for bounce, pitch, roll and sway, so the trunk behaves like a sprung mass with lag and overshoot. At canter and gallop the pitch is locked to the stride instead: the forehand is lowest as the trailing hind lands and highest late in the leading fore's stance, as measured from footage. A small forward surge happens within each stride, plus lumbosacral flexion and lateral bending in turns |
 | Neck and head | `Locomotion.js` | Five neck segments form a cascade of springs: each follows the one before with a little more lag, so a wave travels down the neck. The neck reacts to the trunk's vertical acceleration. The head is stabilised: it counter-rotates most of the neck and trunk pitch |
 | Tail | `Locomotion.js` | A cascade of springs in pitch and yaw: carried higher with speed, kicked by trunk bounce, swaying with the walk, swishing at rest |
 | Soft tissue | `coat.js` (vertex shader) | The belly and flanks lag the trunk's vertical motion through a fast underdamped spring |
@@ -59,6 +59,15 @@ Causes found and fixed:
 - **Gait changes cross-faded footfall patterns.** Legs now re-time
   themselves during their own swing.
 
+### Against footage (`node tools/gait-timing.mjs`)
+
+| Canter | Footage | Before | After |
+| --- | --- | --- | --- |
+| Duty factor | ≈ 0.46 | 0.24–0.26 (app speed 6.8 m/s) | 0.39–0.41 (app speed 5.0 m/s) |
+| All hooves off the ground | ≈ 0.15 of the stride | 0.39 | 0.22 |
+| Forehand highest | ≈ 0.7 of the stride | ≈ 0.2 | 0.72 |
+| Head lowest (relative to the withers) | ≈ 0.7 | ≈ 0.25 | ≈ 0.7 |
+
 ## Reference material
 
 Gathered by a research pass using web searches. **[V]** means confirmed in
@@ -67,7 +76,7 @@ could not be fetched from the build environment.
 
 ### Gait footage
 
-- **Owner's pick:** horse motion footage chosen as a reference for this project: https://www.youtube.com/watch?v=lgV1CB8Zhf4. The build environment can't fetch YouTube, so the clip hasn't been reviewed against the animation yet.
+- **Owner's pick:** *Wild Horses of Australia*, https://www.youtube.com/watch?v=lgV1CB8Zhf4. 18 clips from it were labelled and measured frame by frame; the findings and what changed are in [`VIDEO-REFERENCE.md`](VIDEO-REFERENCE.md). The clips themselves stay off `main`.
 - Britannica gallop clip, four-beat racing gallop: https://www.britannica.com/topic/gallop/images-videos [V]
 - University of Nebraska slow-motion gaits with leg wraps, which make the footfall order easy to see: https://mediahub.unl.edu/media/24357 [V]
 - American Museum of Natural History, walk, trot and gallop flipbooks: https://amnh.org/explore/ology/zoology/horse-gaits-flipbooks-walk-trot-and-gallop [V]
@@ -110,6 +119,8 @@ could not be fetched from the build environment.
 
 **Gait timing**
 - ✓ Gait thresholds: walk to trot happens at Froude ≈ 0.35, about 2 m/s.
+- ✓ Canter footfalls, duty (≈ 0.4–0.45 at a working canter) and a short suspension (≈ 0.2) match footage measured frame by frame.
+- ✓ Duty factors fall with speed within each gait; the legs' stance reach no longer cuts them far below the target.
 - ✓ Gallop stride frequency is about 2.2–2.3 Hz.
 - ✓ Stance shortens with speed while swing stays about constant.
 - ~ Gait changes happen within about a stride, leg by leg. Nothing yet forces a canter to start from the outside hind.
@@ -124,7 +135,7 @@ could not be fetched from the build environment.
 **Trunk and back**
 - ✓ The trunk is sprung.
 - ✓ Trot bounces twice per stride, lowest at mid-stance.
-- ✓ Pitch dominates at canter.
+- ✓ Pitch dominates at canter, in the measured phase: forehand highest late in the leading fore's stance, lowest as the trailing hind lands, with the head counter-swinging.
 - ✓ Most flexion at the gallop is lumbosacral.
 - ✓ Breathing locks to the stride at canter and gallop.
 

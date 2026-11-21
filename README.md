@@ -132,6 +132,11 @@ camera zooms in to 30 cm.
      lid. The eyes make small saccades and lead the head into turns. The
      nostrils flare on each breath in, a little at rest and fully at the
      gallop or while blowing after work.
+   - The canter's footfalls, duty factor, suspension and rocking were
+     measured frame by frame from documentary footage of brumbies and the
+     gait matched to them: see [docs/VIDEO-REFERENCE.md](docs/VIDEO-REFERENCE.md).
+     `node tools/gait-timing.mjs` prints the same measures for the
+     procedural gaits.
    - See [docs/MOTION-NOTES.md](docs/MOTION-NOTES.md) for the analysis,
      the reference footage, and a realism checklist.
 6. **Mane and tail** (`Hair.js`):
@@ -184,7 +189,8 @@ straight to `main`, force-pushing and deleting the branch are blocked.
 `preview.html` is a development page for inspecting the sculpt
 (`?view=side|front|back|top|q34|head|eyeclose|muzzle|ear…`, `?gait=gallop&t=2`,
 `?blink=0..1` to hold the lids part-closed, `?flare=0..1` to hold the nostrils
-flared).
+flared). With `?gait=…`, `window.__step(dt)` advances the animation one frame
+and returns the image and each leg's stance, for comparing against footage.
 
 ## Licence
 
