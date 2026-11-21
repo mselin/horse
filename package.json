@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:smoke": "node tests/smoke.mjs",
-    "test:motion": "node tools/motion-check.mjs"
+    "test:motion": "node tools/motion-check.mjs",
+    "gait-timing": "node tools/gait-timing.mjs"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {

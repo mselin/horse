@@ -89,12 +89,12 @@ class Leg {
       this.pivot = [L.shoulder[0], L.shoulder[1]];
       const comp = [L.coffin[0] - L.elbow[0], L.coffin[1] - L.elbow[1]];
       this.reach = len(this.v[1]) + len(comp);
-      this.reachBonus = 0.1; // the scapula rotates, carrying the shoulder joint with it
+      this.reachBonus = 0.13; // the scapula rotates, carrying the shoulder joint with it
     } else {
       this.pivot = [L.hip[0], L.hip[1]];
       const comp = [L.coffin[0] - L.stifle[0], L.coffin[1] - L.stifle[1]];
       this.reach = len(this.v[0]) + len(comp);
-      this.reachBonus = 0.02;
+      this.reachBonus = 0.09; // the pelvis rocks (lumbosacral flexion), carrying the hip
     }
     this.restCoffinRel = L.coffin[0] - this.pivot[0];
 
@@ -193,7 +193,7 @@ export class Locomotion {
     else if (idx > 0 && v < GAIT_DOWN[this.gaitName]) name = GAIT_ORDER[idx - 1];
     if (this.forcedGait) name = this.forcedGait;
     if (name !== this.gaitName) {
-      this.prevGait = { ...this.params, duty: { ...this.params.duty }, phase: { ...this.params.phase }, swingH: { ...this.params.swingH }, stanceShift: { ...this.params.stanceShift } };
+      this.prevGait = { ...this.params, duty: { ...this.params.duty }, dutyFast: { ...this.params.dutyFast }, phase: { ...this.params.phase }, swingH: { ...this.params.swingH }, stanceShift: { ...this.params.stanceShift } };
       this.gaitName = name;
       this.gaitBlend = 0;
     }
@@ -231,13 +231,17 @@ export class Locomotion {
     this.freq += (fTarget - this.freq) * Math.min(1, dt * 3);
 
     // stance length that the legs can actually span at this speed
-    const drop = p.bodyDrop * clamp(v / 10, 0, 1);
+    // the trunk settles lower once the horse is moving: the legs compress
+    // under load, which is also what gives them the reach for a long stance
+    const drop = p.bodyDrop * clamp(v / 2, 0, 1);
+    // duty factor falls across the gait's speed range
+    const sv = clamp((v - g.speed[0]) / (g.speed[1] - g.speed[0]), 0, 1);
     for (const key of ['F', 'H']) {
       const leg = key === 'F' ? this.legs[0] : this.legs[2];
       const X = this.legReach(leg, drop);
       const maxStance = 2 * X * 0.9;
       const Dmax = v > 0.1 ? (maxStance * this.freq) / v : 1;
-      const want = Math.min(p.duty[key], Dmax);
+      const want = Math.min(p.duty[key] + (p.dutyFast[key] - p.duty[key]) * sv, Dmax);
       this.duty[key] += (want - this.duty[key]) * Math.min(1, dt * 4);
     }
     const duty = this.duty;
@@ -341,7 +345,15 @@ export class Locomotion {
 
     // ---- sprung trunk ----
     const yT = -p.bob * 1.6 * (loads.all - meanAll) * mv - drop;
-    const pitchT = p.pitch * (loads.H - meanH - (loads.F - meanF)) * mv;
+    // Asymmetric gaits (canter, gallop) rock: footage of cantering horses
+    // (docs/VIDEO-REFERENCE.md) shows the forehand lowest as the trailing hind
+    // lands and highest late in the leading fore's stance, as the hinds' push
+    // behind the centre of mass tips the nose down and the leading fore vaults
+    // the forehand up. That rocking is locked to the stride; symmetric gaits
+    // keep the load-driven pitch.
+    const locked = p.surgeHarm < 1.5 ? mv : 0;
+    const rock = Math.cos(TAU * (this.phase - (g.rockPeak ?? 0.6)));
+    const pitchT = (1 - locked) * p.pitch * (loads.H - meanH - (loads.F - meanF)) * mv + locked * p.pitch * rock;
     const rollT = p.roll * (loads.R - loads.L) * mv;
     const swayT = 0.012 * (loads.R - loads.L) * mv * (p.surgeHarm > 1 ? 1 : 0.4);
     const leanT = -clamp((v * this.yawRate) / 9.81, -0.5, 0.5) * 0.55;
@@ -350,11 +362,11 @@ export class Locomotion {
     const roll = S.roll.step(rollT, dt, 2.2, 0.5);
     const sway = S.sway.step(swayT, dt, 1.8, 0.6);
     const lean = S.lean.step(leanT, dt, 1.2, 0.8);
+    this.dbg = { pitch, y };
     this.bodyAy = (S.y.v - this.prevBodyVy) / Math.max(dt, 1e-3);
     this.prevBodyVy = S.y.v;
     // breathing: free at rest and slow gaits, locked one breath per stride at
     // canter and gallop (the gut acts as a piston on the diaphragm)
-    const locked = p.surgeHarm < 1.5 ? mv : 0;
     // breath: -1..1, positive while breathing in (drives the nostril flare)
     this.breath = this.standing
       ? Math.sin(this.time * 1.6)
@@ -382,7 +394,9 @@ export class Locomotion {
 
     // ---- neck & head: spring cascade (a wave runs down the neck) ----
     this.updateHeadLook(dt, v);
-    const nod = -p.nod * (loads.F - meanF) * mv;
+    // the neck swings down as the forehand rises (head lowest, relative to the
+    // withers, late in the leading fore's stance), up as it falls
+    const nod = (1 - locked) * -p.nod * (loads.F - meanF) * mv - locked * p.nod * Math.cos(TAU * (this.phase - (g.nodPeak ?? 0.56)));
     const carriage = p.neckCarriage * clamp(v / 6, 0, 1) - 0.04 * mv;
     const inertia = -0.004 * this.bodyAy; // neck lags the trunk's vertical acceleration
     let target = carriage + nod + this.headLook.pitch + inertia;

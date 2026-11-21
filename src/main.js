@@ -227,7 +227,7 @@ function updateCamera(dt) {
 // ---------------------------------------------------------------------------
 // Input
 // ---------------------------------------------------------------------------
-const GAIT_SPEEDS = [0, 1.6, 3.8, 6.8, 13.5];
+const GAIT_SPEEDS = [0, 1.6, 3.8, 5.0, 13.5];
 const GAIT_LABEL = ['Standing', 'Walk', 'Trot', 'Canter', 'Gallop'];
 let gaitIndex = 0;
 const keys = new Set();
