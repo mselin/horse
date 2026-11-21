@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Mika Selin
 // Eyelashes, muzzle whiskers (vibrissae) and tactile hairs over the eyes.
 // Thin line strands parented to the head bone, rooted on the actual skin.
 

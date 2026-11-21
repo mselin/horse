@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Mika Selin
 // Debug page: bakes the horse and renders it from fixed views (?view=side|front|back|top|q34|head|legs)
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Mika Selin
 // Bakes the horse sculpt into a skinned triangle mesh with per-vertex data.
 // Runs in a Web Worker in the browser (and under Node for testing).
 

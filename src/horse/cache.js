@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Mika Selin
 // IndexedDB cache for baked meshes, keyed by a hash of the sculpt definition,
 // so the multi-second bake only runs when the anatomy actually changes.
 

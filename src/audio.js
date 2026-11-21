@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Mika Selin
 // Synthesised hoofbeats: a short band-passed noise "clop" layered with a low
 // thump, varied per footfall. Starts muted (browsers require a user gesture).
 

@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+   Copyright (C) 2026 Mika Selin */
 html,
 body {
   margin: 0;
@@ -75,6 +77,16 @@ canvas {
 #hud .speed {
   font-size: 16px;
   opacity: 0.8;
+}
+#hud .legal {
+  margin-top: 6px;
+  font-size: 11px;
+  opacity: 0.55;
+  font-family: system-ui, sans-serif;
+  pointer-events: auto;
+}
+#hud .legal a {
+  color: inherit;
 }
 #hud .keys {
   margin-top: 8px;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Mika Selin
 // Procedural locomotion: footfall-driven leg state machines, planar two-bone
 // IK with gait-dependent distal joint folding, load-driven body motion, neck
 // nodding, spine flexion, tail carriage and ear "attention".

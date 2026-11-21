@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Mika Selin
 // Browser smoke test: serves the production build, loads the page in headless
 // Chromium (software WebGL), runs a short canter and renders one frame.
 // Fails on any page error, console error, or if the horse never appears.

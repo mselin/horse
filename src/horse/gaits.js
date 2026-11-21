@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Mika Selin
 // Gait definitions. Footfall timing (touchdown phase of each limb as a
 // fraction of the stride), duty factors and stride frequencies follow the
 // equine locomotion literature summarised in docs/RESOURCES.md:

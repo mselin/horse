@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Mika Selin
 // Signed-distance primitives and smooth CSG used to sculpt the horse.
 //
 // The body is a list of anatomical primitives (ellipsoids and round cones)

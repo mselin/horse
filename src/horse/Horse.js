@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Mika Selin
 // Assembles the baked mesh, skeleton, eyes and hair into a three.js object.
 
 import * as THREE from 'three';
