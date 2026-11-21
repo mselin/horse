@@ -16,6 +16,7 @@ import { COATS, MANE_COLORS, setCoat } from './horse/coat.js';
 import { World } from './world/World.js';
 import { addFacialHairs } from './horse/FacialHairs.js';
 import { Hoofbeats } from './audio.js';
+import { PerfStats } from './stats.js';
 
 const params = new URLSearchParams(location.search);
 // mesh cell size (m), hair density, grass blades, shadow map, max pixel ratio
@@ -114,7 +115,11 @@ const state = {
   autoCondition: !params.has('dirt') && !params.has('sweat'),
   hairDetail: 1,
   veins: 0.5,
+  // slow motion: simulated time runs this many times slower than real time
+  slowmo: Math.min(16, Math.max(1, +(params.get('slow') ?? 1) || 1)),
+  stats: params.has('stats'),
 };
+const SLOWMO_STEPS = [1, 2, 4, 8, 16];
 
 const horse = new Horse(baked, { coat: state.coat });
 scene.add(horse.group);
@@ -126,6 +131,17 @@ const skeletonHelper = new THREE.SkeletonHelper(horse.mesh);
 skeletonHelper.visible = false;
 scene.add(skeletonHelper);
 const audio = new Hoofbeats();
+let simDt = 0;
+const perf = new PerfStats(renderer, {
+  getScene: () => ({
+    quality,
+    vertices: horse.geometry.attributes.position.count,
+    strands: state.hair ? hair.strandCount : 0,
+    grass: Q.grass,
+    sim: `${state.slowmo > 1 ? `${+state.slowmo.toFixed(1)}× slow · ` : ''}step ${(simDt * 1000).toFixed(2)} ms`,
+  }),
+});
+perf.setVisible(state.stats);
 
 loco.onFootfall((leg, pos, speed) => {
   world.emitDust(pos, speed);
@@ -255,6 +271,17 @@ addEventListener('keydown', (e) => {
     cine.cut = true;
     gui.controllersRecursive().forEach((c) => c.updateDisplay());
   }
+  if (e.code === 'KeyM') {
+    // cycle 1×, 2×, 4×, 8×, 16× slow motion
+    const i = SLOWMO_STEPS.findIndex((s) => s > state.slowmo + 1e-6);
+    state.slowmo = i < 0 ? 1 : SLOWMO_STEPS[i];
+    gui.controllersRecursive().forEach((c) => c.updateDisplay());
+  }
+  if (e.code === 'KeyF') {
+    state.stats = !state.stats;
+    perf.setVisible(state.stats);
+    gui.controllersRecursive().forEach((c) => c.updateDisplay());
+  }
   if (e.code === 'KeyH') {
     document.getElementById('hud').classList.toggle('hidden');
     gui.show(gui._hidden);
@@ -289,7 +316,9 @@ fMove
     gui.controllersRecursive().forEach((c) => c.updateDisplay());
   });
 fMove.add(state, 'camera', ['orbit', 'cinematic', 'side']).name('Camera').onChange(() => (cine.cut = true));
+fMove.add(state, 'slowmo', 1, 16, 0.5).name('Slow motion ×');
 fMove.add(state, 'sound').name('Hoofbeats').onChange((v) => audio.enable(v));
+gui.add(state, 'stats').name('Performance stats (F)').onChange((v) => perf.setVisible(v));
 const fCoat = gui.addFolder('Coat & markings');
 fCoat
   .add(state, 'coat', Object.keys(COATS))
@@ -397,9 +426,16 @@ hud.classList.remove('hidden');
 window.__ready = true;
 window.__app = { horse, loco, hair, world, camera, state, renderer, scene, composer };
 
+const hudSlow = document.getElementById('hudSlow');
+
 function frame() {
   clock.update();
-  const dt = Math.min(clock.getDelta(), 1 / 20);
+  perf.begin();
+  // everything simulated runs on slowed time; the film grain keeps real time
+  const realDt = Math.min(clock.getDelta(), 1 / 20);
+  const dt = realDt / state.slowmo;
+  simDt = dt;
+  audio.slow = state.slowmo;
   if (state.demo) updateDemo(dt);
   let steer = 0;
   if (keys.has('KeyA') || keys.has('ArrowLeft')) steer += 1;
@@ -419,8 +455,10 @@ function frame() {
 
   hudGait.textContent = loco.standing ? 'Standing' : loco.gaitName;
   hudSpeed.textContent = `${(loco.speed * 3.6).toFixed(0)} km/h`;
+  hudSlow.textContent = state.slowmo > 1 ? `Slow motion ${+state.slowmo.toFixed(1)}×` : '';
 
   composer.render();
+  perf.end(realDt);
   if (params.has('capture')) return; // frames are driven by window.__captureStep
   if (params.has('still')) {
     window.__stillDone = true;

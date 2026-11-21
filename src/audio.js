@@ -7,6 +7,7 @@ export class Hoofbeats {
   constructor() {
     this.enabled = false;
     this.ctx = null;
+    this.slow = 1; // slow-motion factor: hoofbeats drop in pitch and ring longer
   }
 
   enable(on) {
@@ -30,32 +31,33 @@ export class Hoofbeats {
     if (!this.enabled || !this.ctx) return;
     const t = this.ctx.currentTime;
     const vol = Math.min(1, 0.25 + speed / 12);
+    const k = Math.sqrt(Math.max(1, this.slow));
     // click / clop
     const src = this.ctx.createBufferSource();
     src.buffer = this.noise;
-    src.playbackRate.value = 0.8 + Math.random() * 0.4;
+    src.playbackRate.value = (0.8 + Math.random() * 0.4) / k;
     const bp = this.ctx.createBiquadFilter();
     bp.type = 'bandpass';
-    bp.frequency.value = (fore ? 900 : 750) + Math.random() * 300;
+    bp.frequency.value = ((fore ? 900 : 750) + Math.random() * 300) / k;
     bp.Q.value = 1.4;
     const g = this.ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.5 * vol, t + 0.004);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    g.gain.exponentialRampToValueAtTime(0.5 * vol, t + 0.004 * k);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12 * k);
     src.connect(bp).connect(g).connect(this.master);
     src.start(t);
-    src.stop(t + 0.2);
+    src.stop(t + 0.2 * k);
     // body thump
     const o = this.ctx.createOscillator();
     o.type = 'sine';
-    o.frequency.setValueAtTime(95 + Math.random() * 20, t);
-    o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+    o.frequency.setValueAtTime((95 + Math.random() * 20) / k, t);
+    o.frequency.exponentialRampToValueAtTime(45 / k, t + 0.12 * k);
     const og = this.ctx.createGain();
     og.gain.setValueAtTime(0.0001, t);
-    og.gain.exponentialRampToValueAtTime(0.6 * vol, t + 0.006);
-    og.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    og.gain.exponentialRampToValueAtTime(0.6 * vol, t + 0.006 * k);
+    og.gain.exponentialRampToValueAtTime(0.0001, t + 0.16 * k);
     o.connect(og).connect(this.master);
     o.start(t);
-    o.stop(t + 0.2);
+    o.stop(t + 0.2 * k);
   }
 }

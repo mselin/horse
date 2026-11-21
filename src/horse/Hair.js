@@ -121,7 +121,11 @@ class GuideGroup {
     this.updateColliders();
     const N = this.N, P = this.pos, Q = this.prev, R = this.rest;
     const bones = this.horse.skeleton.bones;
-    const damp = this.damping, drag = this.drag;
+    // per-step constants are tuned for 60 steps a second; scale them so the
+    // hair behaves the same at any step size (slow motion, low frame rates)
+    const rate = dt * 60;
+    const damp = Math.pow(this.damping, rate), drag = this.drag;
+    const kIt = [1, 0.35];
     const gy = -9.81 * dt * dt;
     const cols = this.colliders;
     const wl = Math.hypot(wind.x, wind.y, wind.z);
@@ -157,7 +161,7 @@ class GuideGroup {
           const o = base + i * 3;
           // shape matching toward the rest pose carried by the root bone
           tmpV.set(R[o], R[o + 1], R[o + 2]).applyQuaternion(tmpQ);
-          const k = this.stiff[i] * (it === 0 ? 1 : 0.35);
+          const k = 1 - Math.pow(1 - this.stiff[i] * kIt[it === 0 ? 0 : 1], rate);
           P[o] += (rx + tmpV.x - P[o]) * k;
           P[o + 1] += (ry + tmpV.y - P[o + 1]) * k;
           P[o + 2] += (rz + tmpV.z - P[o + 2]) * k;
@@ -403,7 +407,9 @@ export class Hair {
     // --- render strands ---
     this.material = this.createMaterial(color);
     this.meshes = [];
+    this.strandCount = 0;
     const makeMesh = (g, opts) => {
+      this.strandCount += opts.count;
       const geo = buildStrands(g, opts);
       const tex = new THREE.DataTexture(new Float32Array(g.N * g.G * 2 * 4), g.N, g.G * 2, THREE.RGBAFormat, THREE.FloatType);
       tex.needsUpdate = true;

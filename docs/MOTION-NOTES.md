@@ -68,6 +68,13 @@ Causes found and fixed:
 | Forehand highest | ≈ 0.7 of the stride | ≈ 0.2 | 0.72 |
 | Head lowest (relative to the withers) | ≈ 0.7 | ≈ 0.25 | ≈ 0.7 |
 
+| Gallop (13.5 m/s) | Footage | Before | After |
+| --- | --- | --- | --- |
+| Stride frequency | 2.27 Hz | 2.25 Hz | 2.25 Hz |
+| All hooves off the ground | ≈ 0.15–0.25 | 0.35 | 0.32 |
+| Forehand highest, head lowest | ≈ 0.8, ≈ 0.8 | 0.68, 0.78 | 0.78, 0.83 |
+| Head carriage | neck long and low, nose out | face near vertical | neck long and low, nose out |
+
 ## Reference material
 
 Gathered by a research pass using web searches. **[V]** means confirmed in
