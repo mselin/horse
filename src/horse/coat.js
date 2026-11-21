@@ -34,15 +34,15 @@ const lin = (hex) => new THREE.Color(hex);
 export function createCoatMaterial(coatName = 'chestnut') {
   const mat = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
-    roughness: 0.52,
+    roughness: 0.47,
     metalness: 0,
     sheen: 1.0,
-    sheenRoughness: 0.42,
+    sheenRoughness: 0.38,
     sheenColor: new THREE.Color('#9a6c54'),
     anisotropy: 0.55,
     anisotropyRotation: Math.PI / 2, // highlight band runs across the hair direction
     clearcoat: 0.0,
-    specularIntensity: 0.6,
+    specularIntensity: 0.7,
   });
 
   const u = {
@@ -184,7 +184,7 @@ export function createCoatMaterial(coatName = 'chestnut') {
         float ao = vAoCurv.x;
         float curv = clamp(vAoCurv.y, -1.0, 1.0);
         col *= mix(1.0, 0.55 + 0.45 * ao, 0.8);
-        col *= 1.0 + 0.18 * curv * mCoat;
+        col *= 1.0 + 0.3 * curv * mCoat;
         diffuseColor.rgb = col;
         `
       )

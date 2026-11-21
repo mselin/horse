@@ -12,7 +12,8 @@ float wFbm(vec2 p){ float s=0.0, a=0.5; for(int i=0;i<5;i++){ s+=a*wNoise(p); p*
 `;
 
 export class World {
-  constructor(renderer, scene) {
+  constructor(renderer, scene, { grass = 70000, shadowSize = 4096 } = {}) {
+    this.opts = { grass, shadowSize };
     this.renderer = renderer;
     this.scene = scene;
     this.center = new THREE.Vector3();
@@ -22,10 +23,10 @@ export class World {
     this.sky = new Sky();
     this.sky.scale.setScalar(4500);
     const su = this.sky.material.uniforms;
-    su.turbidity.value = 6.5;
-    su.rayleigh.value = 1.6;
+    su.turbidity.value = 9;
+    su.rayleigh.value = 2.4;
     su.mieCoefficient.value = 0.006;
-    su.mieDirectionalG.value = 0.86;
+    su.mieDirectionalG.value = 0.82;
     // no hard sun disc: its radiance (~6e4) would bloom over the whole frame;
     // the Mie glow around the sun remains
     if (su.showSunDisc) su.showSunDisc.value = 0;
@@ -38,7 +39,7 @@ export class World {
 
     this.sun = new THREE.DirectionalLight('#ffd9a8', 3.2);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(4096, 4096);
+    this.sun.shadow.mapSize.set(shadowSize, shadowSize);
     const sc = this.sun.shadow.camera;
     sc.left = -4;
     sc.right = 4;
@@ -121,7 +122,7 @@ export class World {
           vec3 dirt = mix(vec3(0.24, 0.17, 0.11), vec3(0.33, 0.25, 0.16), n2);
           vec3 dryGrass = mix(vec3(0.3, 0.24, 0.11), vec3(0.4, 0.32, 0.15), n2);
           vec3 green = vec3(0.17, 0.19, 0.08);
-          float grassMask = smoothstep(0.38, 0.62, n1);
+          float grassMask = 0.55 + 0.45 * smoothstep(0.3, 0.62, n1);
           vec3 c = mix(dirt, mix(dryGrass, green, smoothstep(0.55, 0.85, n1) * 0.5), grassMask);
           c *= 0.85 + 0.3 * n3;
           diffuseColor.rgb = c;`
@@ -145,7 +146,7 @@ export class World {
   }
 
   buildGrass() {
-    const COUNT = 70000;
+    const COUNT = this.opts.grass;
     const R = 26; // tile half-size around the camera focus
     const blade = new THREE.PlaneGeometry(0.022, 0.34, 1, 4);
     blade.translate(0, 0.16, 0);
@@ -184,7 +185,7 @@ export class World {
           '#include <begin_vertex>',
           `vec2 base = aOff.xy;
           vec2 wpos = uCenter.xz + mod(base - uCenter.xz + uR, 2.0 * uR) - uR;
-          float dens = smoothstep(0.36, 0.6, wFbm(wpos * 0.08));
+          float dens = 0.45 + 0.55 * smoothstep(0.3, 0.62, wFbm(wpos * 0.08));
           float h = aOff.w * dens * (0.6 + 0.8 * wNoise(wpos * 0.5));
           float t = position.y / 0.32;
           float c = cos(aOff.z), s = sin(aOff.z);

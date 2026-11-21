@@ -15,15 +15,21 @@ import { World } from './world/World.js';
 import { Hoofbeats } from './audio.js';
 
 const params = new URLSearchParams(location.search);
-const QUALITY = { low: 0.012, medium: 0.009, high: 0.0075 };
-const quality = params.get('quality') || 'medium';
-const cell = QUALITY[quality] ?? QUALITY.medium;
+// mesh cell size (m), hair density, grass blades, shadow map, max pixel ratio
+const QUALITY = {
+  low: { cell: 0.012, hair: 0.5, grass: 30000, shadow: 2048, dpr: 1 },
+  medium: { cell: 0.009, hair: 0.8, grass: 60000, shadow: 4096, dpr: 1.5 },
+  high: { cell: 0.0075, hair: 1, grass: 90000, shadow: 4096, dpr: 2 },
+};
+const quality = QUALITY[params.get('quality')] ? params.get('quality') : 'medium';
+const Q = QUALITY[quality];
+const cell = Q.cell;
 
 // ---------------------------------------------------------------------------
 // Renderer & post-processing
 // ---------------------------------------------------------------------------
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: params.has('sim') });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.setPixelRatio(Math.min(devicePixelRatio, Q.dpr));
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.62;
@@ -35,7 +41,7 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.05, 5000);
 camera.position.set(4.5, 1.6, 5.5);
 
-const world = new World(renderer, scene);
+const world = new World(renderer, scene, { grass: Q.grass, shadowSize: Q.shadow });
 
 const rt = new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: 4 });
 const composer = new EffectComposer(renderer, rt);
@@ -105,7 +111,7 @@ const state = {
 const horse = new Horse(baked, { coat: state.coat });
 scene.add(horse.group);
 const loco = new Locomotion(horse);
-const hair = new Hair(horse, { color: state.mane });
+const hair = new Hair(horse, { color: state.mane, density: Q.hair });
 scene.add(hair.group);
 const skeletonHelper = new THREE.SkeletonHelper(horse.mesh);
 skeletonHelper.visible = false;
@@ -137,7 +143,7 @@ controls.maxPolarAngle = Math.PI * 0.495;
 controls.target.set(0, 1.2, 0);
 const focus = new THREE.Vector3(0, 1.2, 0);
 const lastFocus = focus.clone();
-const cine = { shot: 0, t: 0, pos: new THREE.Vector3(), look: new THREE.Vector3() };
+const cine = { shot: +(params.get('shot') ?? 0), t: 0, pos: new THREE.Vector3(), look: new THREE.Vector3(), cut: true };
 const SHOTS = [
   { dur: 7, off: [0.6, 0.9, 4.2], look: [0.2, 1.1, 0], fov: 32 }, // low side tracking
   { dur: 6, off: [5.5, 1.3, 2.2], look: [0.3, 1.2, 0], fov: 30 }, // leading 3/4 front
@@ -164,7 +170,7 @@ function updateCamera(dt) {
     if (state.camera === 'side') shot = SHOTS[0];
     else {
       cine.t += dt;
-      if (cine.t > SHOTS[cine.shot].dur) {
+      if (!params.has('shot') && cine.t > SHOTS[cine.shot].dur) {
         cine.t = 0;
         cine.shot = (cine.shot + 1) % SHOTS.length;
         cine.cut = true;

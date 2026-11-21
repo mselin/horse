@@ -11,7 +11,7 @@
 // anatomical plates (Stubbs 1766, Ellenberger/Baum/Dittrich) and conformation
 // proportions; see docs/RESOURCES.md.
 
-import { Ellipsoid, RoundCone, Loft, OP_ADD, OP_SUB, basisFromAxis, eulerMatrix, norm, sub, add, scale, lerp3, dot } from './sdf.js';
+import { Ellipsoid, RoundCone, Loft, Torus, OP_ADD, OP_SUB, basisFromAxis, eulerMatrix, norm, sub, add, scale, lerp3, dot } from './sdf.js';
 import { FORE, HIND, SPINE, HEAD, EAR, EYE, headPt, headDir, BONE_INDEX } from './rig.js';
 
 const NB = Object.keys(BONE_INDEX).length;
@@ -233,13 +233,11 @@ ell([0.27, 1.5, 0], [0.27, 0.115, 0.06], { rot: [0, 0, -10], k: 0.1, bone: SPINE
 // Longissimus: flat, broad, well-muscled back
 ell2([-0.14, 1.455, 0.085], [0.4, 0.06, 0.09], { k: 0.1, bone: SPINE_CHAIN, hair: trunkHair, name: 'longissimus' });
 // Middle gluteals: rounded top of the croup
-ell2([-0.62, 1.49, 0.09], [0.28, 0.09, 0.12], { rot: [0, 0, -7], k: 0.1, bone: SPINE_CHAIN, hair: [-1, -0.35, 0], name: 'gluteal' });
+ell2([-0.62, 1.478, 0.085], [0.3, 0.085, 0.12], { rot: [0, 0, -7], k: 0.12, bone: SPINE_CHAIN, hair: [-1, -0.35, 0], name: 'gluteal' });
 // Point of hip (tuber coxae)
 ell2([-0.45, 1.415, 0.178], [0.075, 0.06, 0.05], { k: 0.09, bone: 'pelvis', hair: [-1, -0.6, 0.3], name: 'hipPoint' });
 // Spring of rib / serratus behind the shoulder
 // External oblique over the flank
-// Stifle fold: skin web from the flank down to the stifle
-cone2([-0.4, 1.03, 0.12], [-0.52, 0.95, 0.158], 0.045, 0.036, { k: 0.08, bone: [[0.0, 'lumbar'], [0.5, 'lumbar'], [1.0, 'femur_R']], hair: [-1, -0.3, 0], name: 'stifleFold' });
 // Flank fold toward the stifle
 ell2([-0.48, 1.07, 0.15], [0.12, 0.1, 0.09], { rot: [0, 0, -25], k: 0.1, bone: { lumbar: 0.5, femur_R: 0.5 }, hair: [-1, -0.2, 0], name: 'flankFold' });
 
@@ -384,7 +382,8 @@ ell2(lerp3(FORE.scapTop, FORE.shoulder, 0.48).map((v, i) => (i === 2 ? 0.16 : v)
   k: 0.1,
   bone: [
     [0.0, 'thorax'],
-    [0.3, 'scap_R'],
+    [0.2, 'thorax'],
+    [0.55, 'scap_R'],
     [0.85, 'scap_R'],
     [1.0, 'humerus_R'],
   ],
@@ -519,45 +518,63 @@ ell2([0.53, 0.03, 0.12], [0.028, 0.026, 0.045], { k: 0.011, wk: 0.008, bone: 'fh
   const up = scale(v, -1);
   const hb = 'head';
   const faceHair = HD(1, 0.15);
-  ell(H(0.065, 0.03), [0.11, 0.095, 0.08], { axis: u, up, k: 0.055, bone: hb, hair: faceHair, name: 'cranium' });
-  ell(H(0.0, -0.022), [0.06, 0.05, 0.07], { axis: u, up, k: 0.045, bone: hb, hair: faceHair, name: 'poll' });
-  ell(H(0.18, 0.0), [0.105, 0.06, 0.09], { axis: u, up, k: 0.045, bone: hb, hair: faceHair, name: 'forehead' });
-  ell2(H(0.168, -0.03, 0.074), [0.048, 0.028, 0.032], { axis: u, up, k: 0.032, bone: hb, hair: faceHair, name: 'orbitRim' });
-  // Jowl: flat, round masseter plate with a visible rim
-  ell2(H(0.19, 0.13, 0.05), [0.105, 0.098, 0.046], { axis: HD(1, 0.15), up, k: 0.045, bone: hb, hair: HD(0.6, 1), name: 'jowl' });
-  ell2(H(0.075, 0.04, 0.055), [0.06, 0.062, 0.038], { axis: u, up, k: 0.045, bone: hb, hair: faceHair, name: 'temporal' });
-  cone2(H(0.195, 0.04, 0.077), H(0.315, 0.072, 0.064), 0.015, 0.009, { k: 0.025, bone: hb, hair: faceHair, name: 'facialCrest' });
-  ell(H(0.295, 0.052), [0.115, 0.085, 0.072], { axis: u, up, k: 0.06, bone: hb, hair: faceHair, name: 'face' });
-  ell(H(0.41, 0.057), [0.095, 0.076, 0.057], { axis: u, up, k: 0.05, bone: hb, hair: faceHair, name: 'nose' });
-  cone2(H(0.22, 0.162, 0.032), H(0.465, 0.132, 0.019), 0.04, 0.028, { k: 0.04, bone: hb, hair: HD(0.8, 0.6), name: 'mandible' });
-  ell(H(0.23, 0.172), [0.085, 0.042, 0.042], { axis: u, up, k: 0.042, bone: hb, hair: HD(0.5, 1), name: 'ganache' });
-  ell(H(0.5, 0.067), [0.068, 0.074, 0.058], { axis: u, up, k: 0.042, bone: hb, hair: faceHair, mat: [0.35, 0, 0.65, 0], name: 'muzzle' });
-  ell(H(0.542, 0.091), [0.038, 0.041, 0.05], { axis: u, up, k: 0.03, bone: hb, hair: faceHair, mat: MAT.skin, name: 'upperLip' });
-  ell(H(0.502, 0.141), [0.042, 0.029, 0.036], { axis: u, up, k: 0.028, bone: hb, hair: HD(0.6, 1), mat: MAT.skin, name: 'lowerLip' });
-  ell(H(0.458, 0.158), [0.042, 0.025, 0.029], { axis: u, up, k: 0.028, bone: hb, hair: HD(0.6, 1), mat: [0.5, 0, 0.5, 0], name: 'chin' });
-  ell2(H(0.52, 0.03, 0.041), [0.03, 0.025, 0.017], { axis: HD(1, -0.5, 0.25), up, k: 0.019, bone: hb, hair: faceHair, mat: MAT.skin, name: 'nostrilRim' });
+  // ---- skull ----
+  ell(H(0.065, 0.03), [0.11, 0.092, 0.078], { axis: u, up, k: 0.055, bone: hb, hair: faceHair, name: 'cranium' });
+  ell(H(0.0, -0.022), [0.06, 0.05, 0.068], { axis: u, up, k: 0.045, bone: hb, hair: faceHair, name: 'poll' });
+  ell(H(0.18, 0.0), [0.105, 0.06, 0.088], { axis: u, up, k: 0.045, bone: hb, hair: faceHair, name: 'forehead' });
+  // Brow (supraorbital process) – a soft bony shelf over the eye
+  ell2(H(0.168, -0.036, 0.068), [0.04, 0.017, 0.025], { axis: HD(1, 0.25), up, k: 0.035, bone: hb, hair: faceHair, name: 'brow' });
+  // Jowl: big flat round masseter disc with a readable rim
+  ell2(H(0.2, 0.112, 0.052), [0.1, 0.095, 0.042], { axis: HD(1, 0.1), up, k: 0.035, bone: hb, hair: HD(0.6, 1), name: 'jowl' });
+  ell2(H(0.075, 0.035, 0.052), [0.06, 0.06, 0.036], { axis: u, up, k: 0.045, bone: hb, hair: faceHair, name: 'temporal' });
+  // Facial crest (zygomatic ridge) running forward from under the eye
+  cone2(H(0.2, 0.03, 0.074), H(0.33, 0.06, 0.062), 0.013, 0.008, { k: 0.022, bone: hb, hair: faceHair, name: 'facialCrest' });
+  // Face and nose: long, straight nasal line, narrowing toward the muzzle
+  ell(H(0.295, 0.045), [0.115, 0.08, 0.07], { axis: u, up, k: 0.055, bone: hb, hair: faceHair, name: 'face' });
+  ell(H(0.41, 0.045), [0.095, 0.068, 0.054], { axis: u, up, k: 0.05, bone: hb, hair: faceHair, name: 'nose' });
+  // Mandible branches and the ganache between them
+  cone2(H(0.22, 0.15, 0.033), H(0.46, 0.115, 0.019), 0.036, 0.026, { k: 0.04, bone: hb, hair: HD(0.8, 0.6), name: 'mandible' });
+  ell(H(0.24, 0.158), [0.085, 0.038, 0.038], { axis: u, up, k: 0.04, bone: hb, hair: HD(0.5, 1), name: 'ganache' });
+  // Muzzle, lips, chin
+  ell(H(0.5, 0.055), [0.066, 0.066, 0.056], { axis: u, up, k: 0.04, bone: hb, hair: faceHair, mat: [0.35, 0, 0.65, 0], name: 'muzzle' });
+  ell(H(0.54, 0.077), [0.036, 0.037, 0.049], { axis: u, up, k: 0.028, bone: hb, hair: faceHair, mat: MAT.skin, name: 'upperLip' });
+  ell(H(0.503, 0.122), [0.038, 0.025, 0.033], { axis: u, up, k: 0.026, bone: hb, hair: HD(0.6, 1), mat: MAT.skin, name: 'lowerLip' });
+  ell(H(0.462, 0.136), [0.04, 0.022, 0.027], { axis: u, up, k: 0.026, bone: hb, hair: HD(0.6, 1), mat: [0.5, 0, 0.5, 0], name: 'chin' });
+  // Alar folds around the nostrils
+  ell2(H(0.515, 0.018, 0.04), [0.032, 0.024, 0.017], { axis: HD(1, -0.45, 0.25), up, k: 0.018, bone: hb, hair: faceHair, mat: MAT.skin, name: 'nostrilRim' });
 
   // ---- carving ----
-  ell(H(0.525, 0.12), [0.058, 0.0035, 0.066], { axis: HD(1, -0.05), up, op: OP_SUB, k: 0.014, bone: hb, mat: MAT.skin, name: 'mouth' });
-  ell2(H(0.54, 0.038, 0.039), [0.019, 0.014, 0.019], { axis: HD(0.6, 1, 0.1), up: [0, 0, 1], op: OP_SUB, k: 0.01, bone: hb, mat: MAT.skin, name: 'nostril' });
-  ell2(H(0.512, 0.014, 0.036), [0.026, 0.0075, 0.012], { axis: HD(-1, -0.6, -0.15), up: [0, 0, 1], op: OP_SUB, k: 0.009, bone: hb, mat: MAT.skin, name: 'nostrilSlit' });
-  ell2(EYE.center, [EYE.radius + 0.003, EYE.radius + 0.003, EYE.radius + 0.003], { op: OP_SUB, k: 0.008, bone: hb, mat: MAT.skin, name: 'eyeSocket' });
-  ell2(H(0.095, -0.046, 0.074), [0.02, 0.013, 0.015], { axis: u, up, op: OP_SUB, k: 0.028, bone: hb, name: 'fossa' });
+  ell(H(0.51, 0.105), [0.052, 0.003, 0.06], { axis: HD(1, -0.08), up, op: OP_SUB, k: 0.01, bone: hb, mat: MAT.skin, name: 'mouth' });
+  // Nostrils: large comma – a round lower opening plus a slit sweeping up and back
+  ell2(H(0.537, 0.03, 0.041), [0.024, 0.017, 0.022], { axis: HD(0.55, 1, 0.15), up: [0, 0, 1], op: OP_SUB, k: 0.01, bone: hb, mat: MAT.skin, name: 'nostril' });
+  ell2(H(0.502, 0.0, 0.038), [0.036, 0.0095, 0.014], { axis: HD(-1, -0.55, -0.12), up: [0, 0, 1], op: OP_SUB, k: 0.009, bone: hb, mat: MAT.skin, name: 'nostrilSlit' });
+  // Eye opening: an almond-shaped carve; the surrounding skin forms the lids
+  ell2(EYE.center, [0.033, 0.021, 0.03], { axis: HD(1, 0.06), up: scale(v, -1), op: OP_SUB, k: 0.006, bone: hb, mat: MAT.skin, name: 'eyeOpening' });
+  // Shallow hollow above the brow (supraorbital fossa)
+  ell2(H(0.1, -0.05, 0.07), [0.018, 0.01, 0.012], { axis: u, up, op: OP_SUB, k: 0.03, bone: hb, name: 'fossa' });
 
-  // ---- eyelids ----
-  const ec = EYE.center;
-  const ed = EYE.dir;
-  const upLid = add(add(ec, scale(ed, 0.006)), scale(v, -0.016));
-  const loLid = add(add(ec, scale(ed, 0.004)), scale(v, 0.0178));
-  ell2(upLid, [0.034, 0.011, 0.015], { axis: HD(1, 0.12), up: ed, k: 0.008, stage: 2, bone: hb, hair: faceHair, mat: [0.5, 0, 0.5, 0], name: 'upperLid' });
-  ell2(loLid, [0.03, 0.009, 0.013], { axis: HD(1, -0.1), up: ed, k: 0.008, stage: 2, bone: hb, hair: faceHair, mat: [0.5, 0, 0.5, 0], name: 'lowerLid' });
+  // ---- eyelids (stage 2): an elliptical ring hugging the eyeball gives a
+  // continuous rolled lid margin and an almond-shaped opening ----
+  for (const side of [1, -1]) {
+    const ed = [EYE.dir[0], EYE.dir[1], EYE.dir[2] * side];
+    const ec = [EYE.center[0], EYE.center[1], EYE.center[2] * side];
+    // ring plane: horizontal axis along the face, vertical = head "up"
+    const hx = norm(sub(HD(1, 0.06), scale(ed, dot(HD(1, 0.06), ed))));
+    const hy = norm([ed[1] * hx[2] - ed[2] * hx[1], ed[2] * hx[0] - ed[0] * hx[2], ed[0] * hx[1] - ed[1] * hx[0]]);
+    const m = [hx[0], hy[0], ed[0], hx[1], hy[1], ed[1], hx[2], hy[2], ed[2]];
+    const c = add(ec, scale(ed, EYE.radius * 0.5));
+    const n = makeNode(new Torus(c, m, EYE.radius * 0.98, 0.0066, 0.72), {
+      k: 0.009, stage: 2, bone: hb, hair: faceHair, mat: [0.25, 0, 0.75, 0], name: 'eyelid', side,
+    });
+    nodes.push(n);
+  }
 
-  // ---- ears ----
+  // ---- ears: leaf shaped, cupped only on the front ----
   const eb = EAR.base, edir = norm(EAR.dir), el = EAR.length;
-  const fwd = norm([1, -0.2, 0.32]);
-  ell2(add(eb, scale(edir, 0.058)), [0.072, 0.029, 0.025], { axis: edir, up: fwd, k: 0.028, bone: 'ear_R', hair: edir, mat: [0.6, 0, 0, 0.4], name: 'ear' });
-  cone2(add(eb, scale(edir, 0.075)), add(eb, scale(edir, el)), 0.021, 0.005, { flat: 0.6, flatAxis: fwd, k: 0.024, bone: 'ear_R', hair: edir, mat: [0.5, 0, 0, 0.5], name: 'earTip' });
-  ell2(add(add(eb, scale(edir, 0.072)), scale(fwd, 0.019)), [0.065, 0.019, 0.018], { axis: edir, up: fwd, op: OP_SUB, stage: 3, k: 0.008, bone: 'ear_R', mat: MAT.skin, name: 'concha' });
+  const fwd = norm([1, -0.2, 0.3]);
+  ell2(add(eb, scale(edir, 0.062)), [0.076, 0.032, 0.022], { axis: edir, up: fwd, k: 0.026, bone: 'ear_R', hair: edir, mat: [0.6, 0, 0, 0.4], name: 'ear' });
+  cone2(add(eb, scale(edir, 0.09)), add(add(eb, scale(edir, el)), [0.006, 0, -0.012]), 0.02, 0.003, { flat: 0.55, flatAxis: fwd, k: 0.022, bone: 'ear_R', hair: edir, mat: [0.5, 0, 0, 0.5], name: 'earTip' });
+  ell2(add(add(eb, scale(edir, 0.075)), scale(fwd, 0.03)), [0.058, 0.014, 0.016], { axis: edir, up: fwd, op: OP_SUB, stage: 3, k: 0.008, bone: 'ear_R', mat: MAT.skin, name: 'concha' });
 }
 
 // ===========================================================================

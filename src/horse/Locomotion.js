@@ -287,7 +287,9 @@ export class Locomotion {
         const landCoffin = _v.set(leg.landToe.x + leg.toeToCoffin[0] * cosY, leg.toeToCoffin[1], leg.landToe.z - leg.toeToCoffin[0] * sinY);
         const e = smooth(clamp((w - 0.04) / 0.9, 0, 1));
         leg.coffinTarget.lerpVectors(leg.liftCoffin, landCoffin, e);
-        leg.coffinTarget.y += p.swingH[leg.key] * bump(w, 0.75, 1.1) * clamp(v / 1.2 + 0.4, 0.4, 1);
+        // hind hooves travel forward low before lifting; fores lift early
+        const lift = leg.fore ? bump(w, 0.75, 1.1) : bump(w, 1.05, 1.3);
+        leg.coffinTarget.y += p.swingH[leg.key] * lift * clamp(v / 1.2 + 0.4, 0.4, 1);
         swingRelCoffin = -p.coffinFlex * bump(w, 0.6);
         if (w > 0.78) hoofAbs = 0.06 * bump((w - 0.78) / 0.22, 1);
         if (w < 0.12) hoofAbs = leg.liftPitch * (1 - w / 0.12) - 0.4 * (w / 0.12);
@@ -346,7 +348,7 @@ export class Locomotion {
       setZ(leg.bones[5], clamp(coffin, -1.7, 0.6));
     } else {
       const hockStance = st && !hold ? 0.14 * p.hockFlex * Math.sin(Math.PI * s) : 0;
-      const hock = st ? hockStance : p.hockFlex * bump(w, 0.62, 1.1);
+      const hock = st ? hockStance : p.hockFlex * bump(w, 0.85, 1.25);
       const [v0, v1, v2, v3] = V;
       const c1 = Math.cos(hock), s1 = Math.sin(hock);
       const c2 = Math.cos(hock + fetlock), s2 = Math.sin(hock + fetlock);
