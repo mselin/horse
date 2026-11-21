@@ -1,0 +1,94 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #120d0a;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  color: #f1e6d2;
+}
+canvas {
+  display: block;
+}
+#loader {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, #2a1d14 0%, #0d0907 70%);
+  z-index: 10;
+  transition: opacity 0.8s ease;
+}
+#loader.done {
+  opacity: 0;
+  pointer-events: none;
+}
+#loader .title {
+  font-size: 54px;
+  letter-spacing: 0.5em;
+  margin-left: 0.5em;
+  color: #e8d5b0;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.8);
+}
+#loader .sub {
+  margin-top: 6px;
+  font-style: italic;
+  opacity: 0.7;
+}
+#loader .bar {
+  margin-top: 28px;
+  width: 320px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.12);
+}
+#loader .fill {
+  height: 100%;
+  width: 0%;
+  background: #c9a36a;
+  transition: width 0.15s linear;
+}
+#loader .stage {
+  margin-top: 10px;
+  font-size: 13px;
+  opacity: 0.6;
+  letter-spacing: 0.05em;
+}
+#hud {
+  position: fixed;
+  left: 22px;
+  bottom: 18px;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  z-index: 5;
+  transition: opacity 0.4s;
+}
+#hud.hidden {
+  opacity: 0;
+}
+#hud .gait {
+  font-size: 30px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+#hud .speed {
+  font-size: 16px;
+  opacity: 0.8;
+}
+#hud .keys {
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.65;
+  font-family: system-ui, sans-serif;
+}
+.lil-gui.root {
+  --background-color: rgba(18, 13, 10, 0.82);
+  --title-background-color: rgba(40, 28, 20, 0.95);
+  --widget-color: #3a2a1f;
+  --hover-color: #4a3727;
+  --focus-color: #5a4430;
+  --number-color: #e3b77a;
+  --string-color: #e3b77a;
+  --font-family: system-ui, sans-serif;
+}

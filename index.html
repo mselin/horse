@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Horse — procedural Thoroughbred in WebGL</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="loader">
+      <div class="title">EQUUS</div>
+      <div class="sub">sculpting a Thoroughbred from 150 anatomical forms</div>
+      <div class="bar"><div class="fill" id="loadFill"></div></div>
+      <div class="stage" id="loadStage">Starting…</div>
+    </div>
+    <div id="hud" class="hidden">
+      <div class="gait" id="hudGait">Standing</div>
+      <div class="speed" id="hudSpeed">0 km/h</div>
+      <div class="keys">
+        <b>W/S</b> faster / slower · <b>A/D</b> steer · <b>1–5</b> stand…gallop · <b>Space</b> halt · <b>C</b> camera · <b>H</b> hide UI
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
