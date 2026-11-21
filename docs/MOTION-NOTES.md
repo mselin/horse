@@ -17,6 +17,8 @@ reference material to compare it against.
 | Tail | `Locomotion.js` | A cascade of springs in pitch and yaw: carried higher with speed, kicked by trunk bounce, swaying with the walk, swishing at rest |
 | Soft tissue | `coat.js` (vertex shader) | The belly and flanks lag the trunk's vertical motion through a fast underdamped spring |
 | Breathing | `Locomotion.js` | Free at rest and at slow gaits; at canter and gallop, locked to one breath per stride |
+| Nostrils | `coat.js` (vertex shader), `main.js` | Each breath in flares the nostrils: the rim moves out round the opening. A little at rest; fully at the gallop and while the horse is blowing after work |
+| Eyes | `Eyes.js` | Upper-lid blinks: full and half blinks a few seconds apart (relaxed horses make about 8–9 full blinks a minute), an extra blink on large gaze shifts, lids drooping a little at a long rest. Fast close (~85 ms), slower opening (~200 ms). The eyes make small saccades and lead the head into turns |
 | Mane and tail hair | `Hair.js` | Verlet guide strands with shape matching, air drag from the horse's own speed, gusts and flutter, and collision spheres. Thousands of GPU-expanded strands follow the guides |
 
 ## Measurements (`npm run test:motion`)
@@ -138,9 +140,12 @@ could not be fetched from the build environment.
 - ✓ Sways side to side at the walk.
 - ✓ Swishes at rest.
 
-**Mane, ears and skin**
+**Mane, face, ears and skin**
 - ✓ The mane is simulated, with air drag from the horse's speed and flutter.
 - ✓ The ears swivel independently and pin back at speed.
+- ✓ The eyes blink, full and half, and lead head turns.
+- ✓ The nostrils flare with each breath, more with effort.
+- ✗ No chewing, lip movement or licking.
 - ✓ The belly and flanks jiggle after footfalls.
 - ✗ No muscle bulging under load.
 - ✗ No skin twitches at rest.

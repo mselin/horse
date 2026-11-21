@@ -101,6 +101,54 @@ export const EYE = {
   })(),
 };
 
+// Eye frame (world, rest pose): x along the eye's long axis toward the muzzle
+// on the right side (toward the poll on the left, so each frame is
+// right-handed), u up, z the gaze. side = 1 right, -1 left. The long axis is
+// ~30° shallower than the nose line: about 28° below horizontal in a normal
+// head carriage, inner corner lowest.
+export function eyeFrame(side = 1) {
+  const z = [EYE.dir[0], EYE.dir[1], EYE.dir[2] * side];
+  const f = headDir(1, -0.55);
+  const fd = f[0] * z[0] + f[1] * z[1] + f[2] * z[2];
+  let x = [f[0] - z[0] * fd, f[1] - z[1] * fd, f[2] - z[2] * fd];
+  const xl = Math.hypot(x[0], x[1], x[2]);
+  x = [x[0] / xl, x[1] / xl, x[2] / xl];
+  // u = z × x, flipped to point up
+  let u = [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]];
+  if (u[1] < 0) u = [-u[0], -u[1], -u[2]];
+  // right-handed: x = u × z
+  x = [u[1] * z[2] - u[2] * z[1], u[2] * z[0] - u[0] * z[2], u[0] * z[1] - u[1] * z[0]];
+  const c = [EYE.center[0], EYE.center[1], EYE.center[2] * side];
+  return { c, x, u, z, side };
+}
+
+// Point on a sphere about the eye centre: az toward the muzzle (radians),
+// el upward, r distance from the centre.
+export function eyePoint(F, az, el, r) {
+  const sa = Math.sin(az) * F.side, ca = Math.cos(az), ce = Math.cos(el), se = Math.sin(el);
+  const o = [];
+  for (let k = 0; k < 3; k++) o.push(F.c[k] + r * (ce * (sa * F.x[k] + ca * F.z[k]) + se * F.u[k]));
+  return o;
+}
+
+// Lid margins: an almond whose corners sit at ±cornerAz; t runs from the
+// inner corner (0, toward the muzzle) to the outer corner (1). The upper lid
+// peaks a little behind the middle, the lower lid a little in front of it.
+export const EYE_LID = {
+  cornerAz: 50 * DEG,
+  innerEl: -4 * DEG,
+  outerEl: 5 * DEG,
+  upper: 35 * DEG,
+  lower: -27 * DEG,
+  az: (t) => (50 - 100 * t) * DEG,
+  // elevation of the lid margin at t
+  el(t, upper) {
+    const base = this.innerEl + (this.outerEl - this.innerEl) * t;
+    const p = upper ? Math.pow(t, 1.16) : Math.pow(t, 0.87);
+    return base + (upper ? this.upper : this.lower) * Math.pow(Math.sin(Math.PI * p), 0.85);
+  },
+};
+
 const mirror = (p) => [p[0], p[1], -p[2]];
 
 // ---------------------------------------------------------------------------

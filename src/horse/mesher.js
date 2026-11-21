@@ -5,45 +5,68 @@
 // Only blocks that can contain the surface are sampled densely, which keeps a
 // ~7 mm grid over the whole horse fast enough to run in a Web Worker at load.
 
+const axisNodes = (lo, hi, h) => {
+  const n = Math.ceil((hi - lo) / h) + 1;
+  const xs = new Float64Array(n);
+  for (let i = 0; i < n; i++) xs[i] = lo + i * h;
+  return xs;
+};
+
 export function polygonize(field, min, max, h, { block = 8, project = 2, onProgress } = {}) {
-  const nx = Math.ceil((max[0] - min[0]) / h) + 1;
-  const ny = Math.ceil((max[1] - min[1]) / h) + 1;
-  const nz = Math.ceil((max[2] - min[2]) / h) + 1;
+  const xs = axisNodes(min[0], max[0], h);
+  const ys = axisNodes(min[1], max[1], h);
+  const zs = axisNodes(min[2], max[2], h);
+  const nx = xs.length, ny = ys.length, nz = zs.length;
   const values = new Float32Array(nx * ny * nz);
   const blockSize = block * h;
 
-  field.buildAccel(min, [min[0] + nx * h + blockSize, min[1] + ny * h + blockSize, min[2] + nz * h + blockSize], blockSize);
+  field.buildAccel(min, [xs[nx - 1] + blockSize, ys[ny - 1] + blockSize, zs[nz - 1] + blockSize], blockSize);
   const acc = field.accel;
+  const skipThresh = 1.7 * acc.rad;
+  // accel cell index of a point (clamped)
+  const cellOf = (x, y, z) => {
+    const i = Math.min(acc.nx - 1, Math.max(0, Math.floor((x - acc.min[0]) / acc.cell)));
+    const j = Math.min(acc.ny - 1, Math.max(0, Math.floor((y - acc.min[1]) / acc.cell)));
+    const k = Math.min(acc.nz - 1, Math.max(0, Math.floor((z - acc.min[2]) / acc.cell)));
+    return i + acc.nx * (j + acc.ny * k);
+  };
 
   // ---- sample the grid block by block --------------------------------------
+  // A block is skipped when every accel cell it touches is certainly inside
+  // or certainly outside. Blocks are never larger than an accel cell, so the
+  // cells holding the block's corners are all the cells it touches.
   const bnx = Math.ceil(nx / block), bny = Math.ceil(ny / block), bnz = Math.ceil(nz / block);
-  const skipThresh = 1.7 * acc.rad;
   let dense = 0;
   for (let bk = 0; bk < bnz; bk++) {
     for (let bj = 0; bj < bny; bj++)
       for (let bi = 0; bi < bnx; bi++) {
-        const aidx = bi + acc.nx * (bj + acc.ny * bk);
-        const dc = acc.centerVal[aidx];
-        const list = acc.lists[aidx];
         const i0 = bi * block, j0 = bj * block, k0 = bk * block;
         const i1 = Math.min(nx, i0 + block), j1 = Math.min(ny, j0 + block), k1 = Math.min(nz, k0 + block);
-        if (Math.abs(dc) > skipThresh) {
-          const v = dc > 0 ? 1 : -1;
+        let sign = 0;
+        for (let c = 0; c < 8 && sign !== 2; c++) {
+          const x = xs[c & 1 ? i1 - 1 : i0], y = ys[c & 2 ? j1 - 1 : j0], z = zs[c & 4 ? k1 - 1 : k0];
+          const dc = acc.centerVal[cellOf(x, y, z)];
+          const s = Math.abs(dc) > skipThresh ? (dc > 0 ? 1 : -1) : 2;
+          if (sign === 0) sign = s;
+          else if (s !== sign) sign = 2;
+        }
+        if (sign !== 2) {
           for (let k = k0; k < k1; k++)
             for (let j = j0; j < j1; j++) {
               const row = nx * (j + ny * k);
-              for (let i = i0; i < i1; i++) values[i + row] = v;
+              for (let i = i0; i < i1; i++) values[i + row] = sign;
             }
           continue;
         }
         dense++;
         for (let k = k0; k < k1; k++) {
-          const z = min[2] + k * h;
+          const z = zs[k];
           for (let j = j0; j < j1; j++) {
-            const y = min[1] + j * h;
+            const y = ys[j];
             const row = nx * (j + ny * k);
             for (let i = i0; i < i1; i++) {
-              values[i + row] = field.evalList(list, min[0] + i * h, y, z);
+              const x = xs[i];
+              values[i + row] = field.evalList(acc.lists[cellOf(x, y, z)], x, y, z);
             }
           }
         }
@@ -55,6 +78,7 @@ export function polygonize(field, min, max, h, { block = 8, project = 2, onProgr
   const cnx = nx - 1, cny = ny - 1, cnz = nz - 1;
   const cellVert = new Int32Array(cnx * cny * cnz).fill(-1);
   const pos = [];
+  const cellH = []; // smallest spacing of each vertex's cell (for projection)
   const corner = new Float32Array(8);
   const EDGES = [
     [0, 1], [2, 3], [4, 5], [6, 7], // x edges
@@ -89,7 +113,10 @@ export function polygonize(field, min, max, h, { block = 8, project = 2, onProgr
           cnt++;
         }
         cellVert[i + cnx * (j + cny * k)] = pos.length / 3;
-        pos.push(min[0] + (i + sx / cnt) * h, min[1] + (j + sy / cnt) * h, min[2] + (k + sz / cnt) * h);
+        const fx = sx / cnt, fy = sy / cnt, fz = sz / cnt;
+        const dx = xs[i + 1] - xs[i], dy = ys[j + 1] - ys[j], dz = zs[k + 1] - zs[k];
+        pos.push(xs[i] + fx * dx, ys[j] + fy * dy, zs[k] + fz * dz);
+        cellH.push(Math.min(dx, dy, dz));
       }
 
   // ---- quads across every sign-changing grid edge ----------------------------
@@ -122,15 +149,16 @@ export function polygonize(field, min, max, h, { block = 8, project = 2, onProgr
   const P = new Float32Array(pos);
   const N = new Float32Array(P.length);
   const g = [0, 0, 0];
-  const e = h * 0.35;
   for (let v = 0; v < P.length; v += 3) {
+    const hv = cellH[v / 3];
+    const e = hv * 0.35;
     let x = P[v], y = P[v + 1], z = P[v + 2];
     for (let it = 0; it < project; it++) {
       const d = field.eval(x, y, z);
       const gl = field.gradient(x, y, z, e, g);
       const step = d / Math.max(gl, 0.2);
       // never move more than one cell
-      const s = Math.max(-h, Math.min(h, step));
+      const s = Math.max(-hv, Math.min(hv, step));
       x -= g[0] * s;
       y -= g[1] * s;
       z -= g[2] * s;

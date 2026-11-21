@@ -13,8 +13,8 @@
 // anatomical plates (Stubbs 1766, Ellenberger/Baum/Dittrich) and conformation
 // proportions; see docs/RESOURCES.md.
 
-import { Ellipsoid, RoundCone, Loft, Torus, OP_ADD, OP_SUB, basisFromAxis, eulerMatrix, norm, sub, add, scale, lerp3, dot } from './sdf.js';
-import { FORE, HIND, SPINE, HEAD, EAR, EYE, headPt, headDir, BONE_INDEX } from './rig.js';
+import { Ellipsoid, RoundCone, Loft, Field, OP_ADD, OP_SUB, basisFromAxis, eulerMatrix, norm, sub, add, scale, lerp3, dot, cross } from './sdf.js';
+import { FORE, HIND, SPINE, HEAD, EAR, EYE, EYE_LID, eyeFrame, eyePoint, headPt, headDir, BONE_INDEX } from './rig.js';
 
 const NB = Object.keys(BONE_INDEX).length;
 
@@ -202,6 +202,9 @@ function cone2(a, b, ra, rb, o = {}) {
 }
 
 // Head-frame helpers: positions/dirs given as (a, b, z)
+const DEG = Math.PI / 180;
+// Right nostril frame (filled in by the head sculpt below)
+export const NOSTRIL = {};
 const H = (a, b, z = 0) => headPt(a, b, z);
 const HD = (a, b, z = 0) => headDir(a, b, z);
 
@@ -527,48 +530,104 @@ ell2([0.53, 0.03, 0.12], [0.028, 0.026, 0.045], { k: 0.011, wk: 0.008, bone: 'fh
   // Brow (supraorbital process) – a soft bony shelf over the eye
   ell2(H(0.168, -0.036, 0.068), [0.04, 0.017, 0.025], { axis: HD(1, 0.25), up, k: 0.035, bone: hb, hair: faceHair, name: 'brow' });
   // Jowl: big flat round masseter disc with a readable rim
-  ell2(H(0.2, 0.112, 0.052), [0.1, 0.095, 0.042], { axis: HD(1, 0.1), up, k: 0.035, bone: hb, hair: HD(0.6, 1), name: 'jowl' });
+  ell2(H(0.2, 0.112, 0.054), [0.1, 0.095, 0.042], { axis: HD(1, 0.1), up, k: 0.026, bone: hb, hair: HD(0.6, 1), name: 'jowl' });
   ell2(H(0.075, 0.035, 0.052), [0.06, 0.06, 0.036], { axis: u, up, k: 0.045, bone: hb, hair: faceHair, name: 'temporal' });
-  // Facial crest (zygomatic ridge) running forward from under the eye
-  cone2(H(0.2, 0.03, 0.074), H(0.33, 0.06, 0.062), 0.013, 0.008, { k: 0.022, bone: hb, hair: faceHair, name: 'facialCrest' });
+  // Facial crest (zygomatic ridge): a sharp bony ridge running forward and
+  // down from under the eye, the upper border of the cheek
+  cone2(H(0.215, 0.036, 0.076), H(0.345, 0.066, 0.066), 0.0085, 0.0055, { k: 0.016, bone: hb, hair: faceHair, name: 'facialCrest' });
   // Face and nose: long, straight nasal line, narrowing toward the muzzle
   ell(H(0.295, 0.045), [0.115, 0.08, 0.07], { axis: u, up, k: 0.055, bone: hb, hair: faceHair, name: 'face' });
   ell(H(0.41, 0.045), [0.095, 0.068, 0.054], { axis: u, up, k: 0.05, bone: hb, hair: faceHair, name: 'nose' });
   // Mandible branches and the ganache between them
   cone2(H(0.22, 0.15, 0.033), H(0.46, 0.115, 0.019), 0.036, 0.026, { k: 0.04, bone: hb, hair: HD(0.8, 0.6), name: 'mandible' });
   ell(H(0.24, 0.158), [0.085, 0.038, 0.038], { axis: u, up, k: 0.04, bone: hb, hair: HD(0.5, 1), name: 'ganache' });
-  // Muzzle, lips, chin
-  ell(H(0.5, 0.055), [0.066, 0.066, 0.056], { axis: u, up, k: 0.04, bone: hb, hair: faceHair, mat: [0.35, 0, 0.65, 0], name: 'muzzle' });
-  ell(H(0.54, 0.077), [0.036, 0.037, 0.049], { axis: u, up, k: 0.028, bone: hb, hair: faceHair, mat: MAT.skin, name: 'upperLip' });
-  ell(H(0.503, 0.122), [0.038, 0.025, 0.033], { axis: u, up, k: 0.026, bone: hb, hair: HD(0.6, 1), mat: MAT.skin, name: 'lowerLip' });
-  ell(H(0.462, 0.136), [0.04, 0.022, 0.027], { axis: u, up, k: 0.026, bone: hb, hair: HD(0.6, 1), mat: [0.5, 0, 0.5, 0], name: 'chin' });
-  // Alar folds around the nostrils
-  ell2(H(0.515, 0.018, 0.04), [0.032, 0.024, 0.017], { axis: HD(1, -0.45, 0.25), up, k: 0.018, bone: hb, hair: faceHair, mat: MAT.skin, name: 'nostrilRim' });
 
-  // ---- carving ----
-  ell(H(0.51, 0.105), [0.052, 0.003, 0.06], { axis: HD(1, -0.08), up, op: OP_SUB, k: 0.01, bone: hb, mat: MAT.skin, name: 'mouth' });
-  // Nostrils: large comma – a round lower opening plus a slit sweeping up and back
-  ell2(H(0.537, 0.03, 0.041), [0.024, 0.017, 0.022], { axis: HD(0.55, 1, 0.15), up: [0, 0, 1], op: OP_SUB, k: 0.01, bone: hb, mat: MAT.skin, name: 'nostril' });
-  ell2(H(0.502, 0.0, 0.038), [0.036, 0.0095, 0.014], { axis: HD(-1, -0.55, -0.12), up: [0, 0, 1], op: OP_SUB, k: 0.009, bone: hb, mat: MAT.skin, name: 'nostrilSlit' });
-  // Eye opening: an almond-shaped carve; the surrounding skin forms the lids
-  ell2(EYE.center, [0.033, 0.021, 0.03], { axis: HD(1, 0.06), up: scale(v, -1), op: OP_SUB, k: 0.006, bone: hb, mat: MAT.skin, name: 'eyeOpening' });
-  // Shallow hollow above the brow (supraorbital fossa)
-  ell2(H(0.1, -0.05, 0.07), [0.018, 0.01, 0.012], { axis: u, up, op: OP_SUB, k: 0.03, bone: hb, name: 'fossa' });
+  // ---- muzzle ----
+  ell(H(0.5, 0.058), [0.064, 0.062, 0.054], { axis: u, up, k: 0.04, bone: hb, hair: faceHair, mat: [0.35, 0, 0.65, 0], name: 'muzzle' });
+  // soft nose over and between the nostrils (the nasal bone ends near a = 0.42)
+  ell(H(0.53, 0.014), [0.034, 0.028, 0.034], { axis: u, up, k: 0.03, bone: hb, hair: faceHair, mat: [0.45, 0, 0.55, 0], name: 'softNose' });
+  // upper lip: broad and prehensile, overhanging the lower lip a little
+  ell(H(0.548, 0.084), [0.034, 0.04, 0.05], { axis: HD(1, 0.25), up, k: 0.026, bone: hb, hair: faceHair, mat: MAT.skin, name: 'upperLip' });
+  // lower lip, smaller, set back under the upper lip
+  ell(H(0.512, 0.125), [0.036, 0.022, 0.034], { axis: HD(1, -0.1), up, k: 0.02, bone: hb, hair: HD(0.6, 1), mat: MAT.skin, name: 'lowerLip' });
+  // chin: a round fleshy pad behind the lower lip
+  ell(H(0.468, 0.143), [0.042, 0.027, 0.03], { axis: HD(1, 0.2), up, k: 0.018, bone: hb, hair: HD(0.6, 1), mat: [0.5, 0, 0.5, 0], name: 'chin' });
 
-  // ---- eyelids (stage 2): an elliptical ring hugging the eyeball gives a
-  // continuous rolled lid margin and an almond-shaped opening ----
-  for (const side of [1, -1]) {
-    const ed = [EYE.dir[0], EYE.dir[1], EYE.dir[2] * side];
-    const ec = [EYE.center[0], EYE.center[1], EYE.center[2] * side];
-    // ring plane: horizontal axis along the face, vertical = head "up"
-    const hx = norm(sub(HD(1, 0.06), scale(ed, dot(HD(1, 0.06), ed))));
-    const hy = norm([ed[1] * hx[2] - ed[2] * hx[1], ed[2] * hx[0] - ed[0] * hx[2], ed[0] * hx[1] - ed[1] * hx[0]]);
-    const m = [hx[0], hy[0], ed[0], hx[1], hy[1], ed[1], hx[2], hy[2], ed[2]];
-    const c = add(ec, scale(ed, EYE.radius * 0.5));
-    const n = makeNode(new Torus(c, m, EYE.radius * 0.98, 0.0066, 0.72), {
-      k: 0.009, stage: 2, bone: hb, hair: faceHair, mat: [0.25, 0, 0.75, 0], name: 'eyelid', side,
-    });
-    nodes.push(n);
+  // ---- mouth ----
+  ell(H(0.51, 0.106), [0.054, 0.0026, 0.06], { axis: HD(1, -0.1), up, op: OP_SUB, k: 0.008, bone: hb, mat: MAT.skin, name: 'mouth' });
+
+  // ---- nostrils: a large comma on each side of the muzzle ----
+  // (NOSTRIL keeps the right side's frame for the breathing flare in coat.js)
+  // Laid out on the muzzle surface as sculpted so far: O, the centre of the
+  // opening, and the rim are projected onto it. n: the way the opening faces
+  // (out and forward of the surface normal); L: its long axis (up and back
+  // toward the eye); W: across it, forward.
+  {
+    const base = new Field(nodes.filter((q) => q.op === OP_ADD && q.stage === 0));
+    const g = [0, 0, 0];
+    const onSkin = (p, depth = 0) => {
+      let q = p.slice();
+      for (let it = 0; it < 4; it++) {
+        const d = base.evalList(null, q[0], q[1], q[2]);
+        base.gradient(q[0], q[1], q[2], 0.0005, g);
+        q = sub(q, scale(g, d + depth));
+      }
+      base.gradient(q[0], q[1], q[2], 0.0005, g);
+      return [q, g.slice()];
+    };
+    const [O, ns] = onSkin(H(0.536, 0.03, 0.05));
+    const n = norm(add(ns, scale(u, 0.45)));
+    let L = HD(-0.55, -0.85);
+    L = norm(sub(L, scale(n, dot(L, n))));
+    let W = norm(cross(n, L));
+    if (dot(W, u) < 0) W = scale(W, -1);
+    const P = (l, w, d) => add(O, add(scale(L, l), add(scale(W, w), scale(n, d))));
+    Object.assign(NOSTRIL, { O, n, L, W, size: [0.023, 0.0128] });
+    const skinIn = [0.1, 0, 0.9, 0];
+    // the opening, then the passage running in and back toward the nasal cavity
+    ell2(P(0, 0, -0.008), [0.022, 0.012, 0.02], { axis: L, up: W, op: OP_SUB, k: 0.006, bone: hb, mat: skinIn, name: 'nostril' });
+    cone2(P(0, 0, -0.012), add(P(0.004, 0, -0.03), scale(u, -0.035)), 0.011, 0.008, { op: OP_SUB, k: 0.008, bone: hb, mat: skinIn, name: 'nostrilPassage' });
+    // false nostril: the slit that carries on up and back
+    ell2(P(0.03, -0.002, -0.002), [0.02, 0.0035, 0.008], { axis: L, up: W, op: OP_SUB, k: 0.004, bone: hb, mat: skinIn, name: 'falseNostril' });
+    // alar fold: the rolled rim round the front of the opening, curling into
+    // the false nostril at the top, lying on the skin
+    const rim = [];
+    for (let i = 0; i <= 6; i++) {
+      const th = (-80 + (180 * i) / 6) * DEG;
+      const r = 0.0026 + 0.0012 * Math.cos(th * 0.85);
+      rim.push([onSkin(P(0.023 * Math.sin(th), 0.0128 * Math.cos(th), 0), r * 0.55)[0], r]);
+    }
+    for (let i = 0; i < rim.length - 1; i++)
+      cone2(rim[i][0], rim[i + 1][0], rim[i][1], rim[i + 1][1], { stage: 2, k: 0.01, bone: hb, hair: faceHair, mat: [0.35, 0, 0.65, 0], name: 'alarFold' });
+  }
+
+  // ---- eyes: an almond opening framed by rolled lid margins ----
+  // The globe is first wrapped in a thin skin shell (stage 2), and the almond
+  // is carved out of that shell (stage 3), so the opening shows nothing but
+  // the eyeball: whatever the carve removes inside the globe is hidden by it.
+  // The lid margins and the lid fold come after (stage 4).
+  {
+    const F = eyeFrame(1);
+    const R = EYE.radius;
+    const at = (x, u, z) => add(EYE.center, add(scale(F.x, x), add(scale(F.u, u), scale(F.z, z))));
+    ell2(EYE.center, [R + 0.0032, R + 0.0032, R + 0.0032], { stage: 2, k: 0.01, bone: hb, hair: faceHair, name: 'eyeShell' });
+    ell2(at(0, 0.0017, 0.012), [0.023, 0.0164, 0.03], { axis: F.x, up: F.u, op: OP_SUB, stage: 3, k: 0.002, bone: hb, mat: MAT.skin, name: 'eyeOpening' });
+    // lid margins: chains of round cones hugging the eyeball, thick on the
+    // upper lid, thinner below
+    const lid = (name, upper, tube, rOff, elOff, t0, t1, n, o) => {
+      const pts = [];
+      for (let i = 0; i <= n; i++) {
+        const t = t0 + ((t1 - t0) * i) / n;
+        const tr = tube(t);
+        pts.push([eyePoint(F, EYE_LID.az(t), EYE_LID.el(t, upper) + elOff, R + rOff(tr)), tr]);
+      }
+      for (let i = 0; i < n; i++) cone2(pts[i][0], pts[i + 1][0], pts[i][1], pts[i + 1][1], { bone: hb, hair: faceHair, name, ...o });
+    };
+    const bump = (t) => Math.pow(Math.sin(Math.PI * t), 0.7);
+    lid('upperLid', true, (t) => 0.0018 + 0.0022 * bump(t), (tr) => 0.45 * tr, 0, 0, 1, 10, { stage: 4, k: 0.004, mat: [0.3, 0, 0.7, 0] });
+    lid('lowerLid', false, (t) => 0.0015 + 0.0012 * bump(t), (tr) => 0.4 * tr, 0, 0, 1, 10, { stage: 4, k: 0.004, mat: [0.3, 0, 0.7, 0] });
+    // the body of the upper lid: a soft roll of skin over the top of the globe
+    lid('upperLidFold', true, (t) => 0.002 + 0.0022 * bump(t), () => 0.0035, 15 * DEG, 0.1, 0.9, 8, { stage: 4, k: 0.008 });
   }
 
   // ---- ears: leaf shaped, cupped only on the front ----
@@ -590,7 +649,8 @@ ell2([0.53, 0.03, 0.12], [0.028, 0.026, 0.045], { k: 0.011, wk: 0.008, bone: 'fh
   }
 }
 
-// Order: additive (stage 0), carve (1), post-add (2), post-carve (3)
+// Order: additive (stage 0), carve (1), post-add (2), post-carve (3), and the
+// eyelids after those (4)
 nodes.sort((a, b) => a.stage - b.stage);
 
 export const HORSE_NODES = nodes;
@@ -603,9 +663,9 @@ export { MAT };
 // ===========================================================================
 const veinDefs = [
   // facial vein: jaw angle up along the front of the masseter toward the eye
-  { r: 0.0032, pts: [H(0.12, 0.2, 0.06), H(0.19, 0.16, 0.085), H(0.25, 0.1, 0.085), H(0.31, 0.07, 0.075), H(0.37, 0.062, 0.066)] },
+  { r: 0.0042, pts: [H(0.12, 0.2, 0.06), H(0.19, 0.16, 0.085), H(0.25, 0.1, 0.085), H(0.31, 0.07, 0.075), H(0.37, 0.062, 0.066)] },
   // transverse facial branch under the facial crest
-  { r: 0.0022, pts: [H(0.22, 0.09, 0.09), H(0.17, 0.065, 0.09), H(0.12, 0.06, 0.08)] },
+  { r: 0.0032, pts: [H(0.22, 0.09, 0.09), H(0.17, 0.065, 0.09), H(0.12, 0.06, 0.08)] },
   // jugular vein in the jugular groove
   { r: 0.0045, pts: [[1.0, 1.72, 0.07], [0.93, 1.56, 0.11], [0.85, 1.42, 0.13], [0.78, 1.3, 0.14], [0.72, 1.2, 0.14]] },
   // superficial thoracic ("spur") vein along the lower barrel

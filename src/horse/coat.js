@@ -14,6 +14,7 @@
 
 import * as THREE from 'three';
 import { headPt } from './rig.js';
+import { NOSTRIL } from './anatomy.js';
 
 export const COATS = {
   bay: { body: '#6a3317', dark: '#3a190b', points: '#0f0b0a', sheen: '#c08a6a', dapple: 0.25, skin: '#1d1918', hoof: '#2a2522' },
@@ -37,6 +38,8 @@ export const MANE_COLORS = {
 
 const VERT_PARS = /* glsl */ `
 uniform vec3 uJiggle;
+uniform float uFlare;
+uniform vec3 uNosO, uNosN, uNosL, uNosW;
 attribute vec4 mats;
 attribute vec2 aoCurv;
 attribute vec3 restPos;
@@ -50,6 +53,19 @@ varying vec4 vVein;
 `;
 
 const VERT_MAIN = /* glsl */ `
+// nostril flare: the rim of each nostril moves out radially round the
+// opening (rest space, before skinning; mirrored for the left side)
+if (uFlare > 0.001) {
+  vec3 m = vec3(1.0, 1.0, position.z < 0.0 ? -1.0 : 1.0);
+  vec3 q = position - uNosO * m;
+  vec3 L = uNosL * m, W = uNosW * m, N = uNosN * m;
+  vec2 e = vec2(dot(q, L) / ${NOSTRIL.size[0].toFixed(4)}, dot(q, W) / ${NOSTRIL.size[1].toFixed(4)});
+  float rho = length(e);
+  float d = dot(q, N);
+  float ring = smoothstep(0.3, 1.0, rho) * (1.0 - smoothstep(1.0, 2.4, rho)) * exp(-d * d / 0.0004);
+  vec2 dir = e / max(rho, 1e-4);
+  transformed += uFlare * ring * (L * dir.x * 0.004 + W * dir.y * 0.0055 + N * 0.0015);
+}
 vMats = mats;
 vAoCurv = aoCurv;
 vRest = restPos;
@@ -309,14 +325,16 @@ const NORMAL_MAIN = /* glsl */ `
     // soft bell profile: a vein is a rounded ridge under the skin
     float d = length(vRest - vVein.xyz) + 0.0006 * (vnoise(vRest * 300.0) - 0.5);
     float x = d / r;
-    h = r * 0.45 * exp(-2.2 * x * x);
+    // on the face they lie flatter under thin skin: lower and softer
+    h = r * 0.45 * exp(-2.2 * x * x) * (1.0 - 0.65 * smoothstep(0.93, 1.03, vRest.x));
   }
   vec3 wp = vRest * 55.0 + vec3(fbm(vRest * 9.0), fbm(vRest * 9.0 + 7.0), 0.0) * 1.5;
   float rid = 1.0 - abs(vnoise(wp) * 2.0 - 1.0);
   float netMask = max(smoothstep(1.05, 0.85, vRest.y) * smoothstep(0.45, 0.1, abs(vRest.x + 0.05)),   // belly
                       smoothstep(0.75, 0.55, vRest.y) * smoothstep(0.13, 0.09, abs(abs(vRest.z) - 0.02)) * 0.8); // inner legs
-  netMask = max(netMask, smoothstep(1.0, 1.12, vRest.x) * 0.6);                                          // face
-  h += smoothstep(0.86, 1.0, rid) * 0.0006 * netMask;
+  float faceNet = smoothstep(1.0, 1.12, vRest.x);                                                        // face
+  // broad, low ridges on the face (fine sharp ones read as cracks there)
+  h += mix(smoothstep(0.86, 1.0, rid) * 0.0006 * netMask, smoothstep(0.6, 1.0, rid) * 0.00022, faceNet);
   h *= uVeins * hairy;
   float fadeV = 1.0 - smoothstep(1.5, 5.0, length(fwidth(vRest)) * 1000.0);
   if (fadeV > 0.0) normal = bumpNormal(normal, h * fadeV);
@@ -386,6 +404,11 @@ export function createCoatMaterial(coatName = 'chestnut') {
     uSweat: { value: 0.0 },
     uVeins: { value: 0.5 },
     uJiggle: { value: new THREE.Vector3() },
+    uFlare: { value: 0 },
+    uNosO: { value: new THREE.Vector3(...NOSTRIL.O) },
+    uNosN: { value: new THREE.Vector3(...NOSTRIL.n) },
+    uNosL: { value: new THREE.Vector3(...NOSTRIL.L) },
+    uNosW: { value: new THREE.Vector3(...NOSTRIL.W) },
   };
   mat.userData.uniforms = u;
   setCoat(mat, coatName);
@@ -415,7 +438,7 @@ export function createCoatMaterial(coatName = 'chestnut') {
       .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\n' + LIGHTS_MAIN)
       .replace('#include <aomap_fragment>', AO_MAIN);
   };
-  mat.customProgramCacheKey = () => 'horse-coat-v2';
+  mat.customProgramCacheKey = () => 'horse-coat-v3';
   return mat;
 }
 

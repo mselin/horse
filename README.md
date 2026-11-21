@@ -12,6 +12,8 @@ textures or motion capture are used.
 | --- | --- |
 | ![Standing](docs/screenshots/standing.jpg) | ![Gallop toward camera](docs/screenshots/gallop-front.jpg) |
 
+![Eye and muzzle close-ups](docs/screenshots/head.jpg)
+
 Gallop cycle (gathered → extended), procedural:
 
 ![Gallop cycle](docs/screenshots/gallop-cycle.jpg)
@@ -62,17 +64,27 @@ camera zooms in to 30 cm.
      width), so the outline stays exact
    - about 150 anatomical forms layered on top: shoulder blade, triceps,
      pectorals, forearm extensors, biceps femoris, semitendinosus, gaskin,
-     tendons, sesamoids, ergots, chestnuts, jowl, facial crest, nostrils,
-     eyelids, ears with a hollow cup, and more
+     tendons, sesamoids, ergots, chestnuts, jowl, facial crest, ears with a
+     hollow cup, and more
+   - a detailed face: comma-shaped nostrils with an inner passage, the false
+     nostril and a rolled alar fold laid onto the muzzle surface; upper and
+     lower lips, mouth corners and chin; an almond eye opening cut from a
+     skin shell around the globe, with rolled lid margins and a soft upper
+     lid fold
    - smooth CSG to combine them
 
    Each form carries the bones it follows, its hair-flow direction and its
    material region.
-3. **Bake** (`bake.js`, `mesher.js`): Surface Nets over a sparse grid
-   (7.5–12 mm), with vertices projected back onto the surface. Skin weights
+3. **Bake** (`bake.js`, `mesher.js`, `stitch.js`): Surface Nets over a
+   sparse grid (7.5–12 mm), with vertices projected back onto the surface.
+   The head is meshed separately with a cell about a third of that size
+   (3–4.3 mm), so the nostrils, lips and eyelids keep their shape, and zipped
+   to the body across the upper neck into one watertight mesh. Skin weights
    come from how much each anatomical form contributes at a vertex, then
-   diffused across the surface. Hair-flow tangents, ambient occlusion and
-   curvature are baked from the distance field.
+   diffused across the whole-body mesh; the head's finer vertices take theirs
+   from it, so every joint bends the same at any quality level. Hair-flow
+   tangents, ambient occlusion and curvature are baked from the distance
+   field.
 4. **Coat** (`coat.js`, `FacialHairs.js`): physical material with
    - colour presets based on coat genetics, black points and white markings
      painted on the rest-pose skin
@@ -90,8 +102,12 @@ camera zooms in to 30 cm.
      travelled, with splatter. Sustained canter or gallop brings sweat, which
      darkens and glosses the coat and clumps the hair, plus lather between
      the hind legs, at the girth and along the neck. Sweat dries at rest
-   - eyelashes, muzzle whiskers and tactile hairs over the eyes, rooted on
-     the lid margin and lip skin
+   - eyelashes, muzzle whiskers, tactile hairs over the eyes and pale tufts
+     inside the ears, rooted on the lid margins, lip skin and ear cups
+   - **eyes** (`Eyes.js`): an eyeball with a horizontal pupil and
+     *corpora nigra*, kept level with the ground; a separate clear cornea
+     that carries the reflections a little above the iris; and the third
+     eyelid in the inner corner
    - anisotropic highlights across the hair, sheen, baked occlusion and
      curvature
 5. **Locomotion** (`gaits.js`, `Locomotion.js`):
@@ -110,6 +126,12 @@ camera zooms in to 30 cm.
      cascades, so motion travels along them with lag and overshoot.
    - The head is stabilised. Breathing locks to the stride at canter and
      gallop, and the belly and flanks jiggle.
+   - The face moves too: the upper lids blink, in full and half blinks at
+     the rate measured in relaxed horses, with an extra blink on large gaze
+     shifts, and droop a little at a long rest; the upper lashes ride the
+     lid. The eyes make small saccades and lead the head into turns. The
+     nostrils flare on each breath in, a little at rest and fully at the
+     gallop or while blowing after work.
    - See [docs/MOTION-NOTES.md](docs/MOTION-NOTES.md) for the analysis,
      the reference footage, and a realism checklist.
 6. **Mane and tail** (`Hair.js`):
@@ -160,7 +182,9 @@ request, and it can merge only once **All checks passed** is green. Pushing
 straight to `main`, force-pushing and deleting the branch are blocked.
 
 `preview.html` is a development page for inspecting the sculpt
-(`?view=side|front|back|top|q34|head…`, `?gait=gallop&t=2`).
+(`?view=side|front|back|top|q34|head|eyeclose|muzzle|ear…`, `?gait=gallop&t=2`,
+`?blink=0..1` to hold the lids part-closed, `?flare=0..1` to hold the nostrils
+flared).
 
 ## Licence
 
