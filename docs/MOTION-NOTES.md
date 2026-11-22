@@ -143,7 +143,8 @@ could not be fetched from the build environment.
 - ✓ The trunk is sprung.
 - ✓ Trot bounces twice per stride, lowest at mid-stance, the withers travelling ≈ 7.7 cm.
 - ✓ At a working trot the hind hoof tracks up into the fore print (`npm run gait-timing`).
-- ~ At the walk the hind still lands a little short of the fore print below ~2 m/s; the rig's high hip joint limits how far the hind leg can swing forward.
+- ✓ At a medium walk (1.8 m/s, 0.94 strides/s) the hind hoof over-tracks the fore print by ≈ 12 cm; a slow walk lands a little short, as real horses do.
+- ✓ In stance the hind leg's stifle and hock open together (the reciprocal apparatus), so the leg lengthens at the start and end of a long stance instead of the hoof falling short of its planted spot.
 - ✓ Pitch dominates at canter, in the measured phase: forehand highest late in the leading fore's stance, lowest as the trailing hind lands, with the head counter-swinging.
 - ✓ Most flexion at the gallop is lumbosacral.
 - ✓ Breathing locks to the stride at canter and gallop.
@@ -177,6 +178,6 @@ could not be fetched from the build environment.
 - ✗ No inside lead in canter turns.
 
 **Known gaps**
-- The rig's hip joint sits high (1.27 m), so the hind leg is nearly straight at rest. This limits hind reach: the slow walk under-tracks, and reach still caps the duty factor at the fast end of each gait. Lowering the hip and re-rigging the hindquarters would fix it.
+- Leg reach still caps the duty factor at the fast end of the canter and gallop a little below the published values. The rig's proportions are not the cause. Its hip joint height (1.27 m) and segment lengths agree with published hindlimb measurements: hindlimb length / hip-socket height = 108%, against 105% in a worked reference. What remains is the simplified forelimb (a straight column in stance) and the absence of a moving pelvis in the reach model.
 - Planted hooves can still slide a few centimetres at the very end of stance at a full gallop, where the leg reaches its limit.
 - Linear-blend skinning still loses some volume at the stifle and elbow in deep flexion. Dual-quaternion skinning or corrective shapes would help.
