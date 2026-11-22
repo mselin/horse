@@ -341,7 +341,11 @@ ell2([-0.735, 0.555, 0.12], [0.06, 0.05, 0.044], {
   mat: MAT.points,
   name: 'hock',
 });
-ell2([-0.811, 0.632, 0.12], [0.028, 0.03, 0.026], { k: 0.03, bone: 'hcannon_R', hair: [0, -1, 0], mat: MAT.points, name: 'pointOfHock' });
+// Point of hock: a bony point no wider than the tendon above it, with the
+// back of the hock running straight on down the back of the cannon (the
+// plantar ligament) rather than a knob over an undercut
+ell2([-0.806, 0.632, 0.12], [0.022, 0.025, 0.021], { k: 0.04, bone: 'hcannon_R', hair: [0, -1, 0], mat: MAT.points, name: 'pointOfHock' });
+cone2([-0.804, 0.612, 0.12], [-0.772, 0.47, 0.118], 0.021, 0.018, { k: 0.03, bone: 'hcannon_R', hair: [0, -1, 0], mat: MAT.points, name: 'plantarLigament' });
 // Hind cannon: bone + flexor tendons behind
 cone2([-0.728, 0.5, 0.12], [-0.738, 0.24, 0.115], 0.03, 0.028, { k: 0.026, bone: 'hcannon_R', hair: [0, -1, 0], mat: MAT.points, name: 'hcannonBone' });
 cone2([-0.766, 0.52, 0.12], [-0.771, 0.25, 0.115], 0.019, 0.021, { flat: 0.75, k: 0.026, bone: 'hcannon_R', hair: [0, -1, 0], mat: MAT.points, name: 'htendon' });
@@ -359,7 +363,10 @@ ell2([-0.742, 0.205, 0.115], [0.044, 0.042, 0.038], {
   name: 'hfetlock',
 });
 ell2([-0.776, 0.215, 0.115], [0.033, 0.036, 0.032], { k: 0.028, bone: { hcannon_R: 0.5, hpastern_R: 0.5 }, hair: [0, -1, 0], mat: MAT.points, name: 'hsesamoid' });
-ell2([-0.786, 0.172, 0.115], [0.013, 0.011, 0.012], { k: 0.014, bone: 'hpastern_R', hair: [0, -1, 0], mat: MAT.points, name: 'hergot' });
+// Ergot: a small horny nub at the back of the fetlock, mostly hidden in the
+// hair; bound like the fetlock so it folds with the joint instead of popping
+// out behind it like an extra toe
+ell2([-0.78, 0.176, 0.115], [0.008, 0.007, 0.008], { k: 0.012, bone: { hcannon_R: 0.4, hpastern_R: 0.6 }, hair: [0, -1, 0], mat: MAT.points, name: 'hergot' });
 // Hind pastern
 cone2([-0.738, 0.19, 0.115], [-0.667, 0.075, 0.115], 0.033, 0.037, {
   k: 0.024,
@@ -374,7 +381,10 @@ cone2([-0.738, 0.19, 0.115], [-0.667, 0.075, 0.115], 0.033, 0.037, {
 });
 // Hind hoof
 cone2([-0.664, 0.072, 0.115], [-0.626, -0.03, 0.115], 0.036, 0.062, { k: 0.011, wk: 0.008, bone: 'hhoof_R', hair: [0.6, -1, 0], mat: MAT.hoof, name: 'hhoof' });
-ell2([-0.7, 0.03, 0.115], [0.028, 0.026, 0.042], { k: 0.011, wk: 0.008, bone: 'hhoof_R', hair: [0, -1, 0], mat: MAT.skin, name: 'hheelBulb' });
+// Heel bulbs: soft, only a little proud of the hoof wall's heels and merged
+// into the back of the pastern (they read as a ball stuck on the heel when the
+// sole turns back in swing if they stand out further)
+ell2([-0.678, 0.04, 0.115], [0.016, 0.02, 0.036], { k: 0.02, wk: 0.008, bone: 'hhoof_R', hair: [0, -1, 0], mat: MAT.skin, name: 'hheelBulb' });
 
 // ===========================================================================
 //  FOREHAND & FORE LIMBS
@@ -432,7 +442,7 @@ cone2([0.46, 0.92, 0.148], [0.483, 0.53, 0.128], 0.07, 0.038, { flat: 0.85, k: 0
 ell2([0.505, 0.8, 0.145], [0.14, 0.046, 0.048], { axis: [0.05, -1, 0], up: [1, 0, 0], k: 0.06, bone: 'radius_R', hair: [0, -1, 0], name: 'extensorCarpi' });
 ell2([0.43, 0.83, 0.145], [0.11, 0.04, 0.045], { axis: [-0.06, -1, 0], up: [1, 0, 0], k: 0.06, bone: 'radius_R', hair: [0, -1, 0], name: 'forearmFlexors' });
 // Chestnut (horny callosity, inside of forearm)
-ell2([0.478, 0.63, 0.088], [0.02, 0.028, 0.01], { k: 0.012, wk: 0.01, bone: 'radius_R', hair: [0, -1, 0], mat: MAT.skin, name: 'chestnut', stage: 2 });
+ell2([0.478, 0.63, 0.086], [0.02, 0.028, 0.007], { k: 0.014, wk: 0.01, bone: 'radius_R', hair: [0, -1, 0], mat: MAT.skin, name: 'chestnut', stage: 2 });
 // Knee (carpus)
 ell2([0.485, 0.488, 0.125], [0.05, 0.046, 0.041], {
   axis: [0, -1, 0],
@@ -464,7 +474,7 @@ ell2([0.49, 0.205, 0.12], [0.044, 0.043, 0.039], {
   name: 'ffetlock',
 });
 ell2([0.455, 0.215, 0.12], [0.033, 0.036, 0.032], { k: 0.028, bone: { fcannon_R: 0.5, fpastern_R: 0.5 }, hair: [0, -1, 0], mat: MAT.points, name: 'fsesamoid' });
-ell2([0.445, 0.175, 0.12], [0.013, 0.011, 0.012], { k: 0.014, bone: 'fpastern_R', hair: [0, -1, 0], mat: MAT.points, name: 'fergot' });
+ell2([0.449, 0.178, 0.12], [0.008, 0.007, 0.008], { k: 0.012, bone: { fcannon_R: 0.4, fpastern_R: 0.6 }, hair: [0, -1, 0], mat: MAT.points, name: 'fergot' });
 // Fore pastern
 cone2([0.495, 0.19, 0.12], [0.57, 0.077, 0.12], 0.033, 0.038, {
   k: 0.024,
@@ -479,7 +489,7 @@ cone2([0.495, 0.19, 0.12], [0.57, 0.077, 0.12], 0.033, 0.038, {
 });
 // Fore hoof (rounder and larger than the hind)
 cone2([0.567, 0.074, 0.12], [0.61, -0.032, 0.12], 0.038, 0.067, { k: 0.011, wk: 0.008, bone: 'fhoof_R', hair: [0.6, -1, 0], mat: MAT.hoof, name: 'fhoof' });
-ell2([0.53, 0.03, 0.12], [0.028, 0.026, 0.045], { k: 0.011, wk: 0.008, bone: 'fhoof_R', hair: [0, -1, 0], mat: MAT.skin, name: 'fheelBulb' });
+ell2([0.552, 0.04, 0.12], [0.016, 0.02, 0.039], { k: 0.02, wk: 0.008, bone: 'fhoof_R', hair: [0, -1, 0], mat: MAT.skin, name: 'fheelBulb' });
 
 // ===========================================================================
 //  NECK – long, light, gently arched
