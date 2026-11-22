@@ -141,7 +141,9 @@ could not be fetched from the build environment.
 
 **Trunk and back**
 - ✓ The trunk is sprung.
-- ✓ Trot bounces twice per stride, lowest at mid-stance.
+- ✓ Trot bounces twice per stride, lowest at mid-stance, the withers travelling ≈ 7.7 cm.
+- ✓ At a working trot the hind hoof tracks up into the fore print (`npm run gait-timing`).
+- ~ At the walk the hind still lands a little short of the fore print below ~2 m/s; the rig's high hip joint limits how far the hind leg can swing forward.
 - ✓ Pitch dominates at canter, in the measured phase: forehand highest late in the leading fore's stance, lowest as the trailing hind lands, with the head counter-swinging.
 - ✓ Most flexion at the gallop is lumbosacral.
 - ✓ Breathing locks to the stride at canter and gallop.
@@ -175,5 +177,6 @@ could not be fetched from the build environment.
 - ✗ No inside lead in canter turns.
 
 **Known gaps**
+- The rig's hip joint sits high (1.27 m), so the hind leg is nearly straight at rest. This limits hind reach: the slow walk under-tracks, and reach still caps the duty factor at the fast end of each gait. Lowering the hip and re-rigging the hindquarters would fix it.
 - Planted hooves can still slide a few centimetres at the very end of stance at a full gallop, where the leg reaches its limit.
 - Linear-blend skinning still loses some volume at the stifle and elbow in deep flexion. Dual-quaternion skinning or corrective shapes would help.
