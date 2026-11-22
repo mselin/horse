@@ -91,6 +91,37 @@ Changes:
   - The head now cancels the neck's static lowering in full and opens at
     speed. Before, lowering the neck dragged the face toward vertical.
 
+## Trot: brumbies along a skyline, side-on (`wha-50m48s…`), real time
+
+The horses overlap in most frames, so only one horse's near hind reads
+cleanly for about one stride. It lands, stays down about 7 of the 16 frames
+of the stride (duty ≈ 0.4) and lifts. That timing already matched ours
+(duty 0.40–0.42, 1.57 strides a second, 13% airborne). The close trot in
+`wha-17m30s…` is framed too tight: the hooves are out of shot.
+
+Two things went beyond timing, so they were checked against published trot
+kinematics and the footage's overall look, and measured on ours with
+`npm run gait-timing`.
+
+| At 3.8 m/s | Real working trot | Before | After |
+| --- | --- | --- | --- |
+| Hind hoof vs the print the fore on the same side just left | in it or a little past ("tracking up") | 18 cm short | in it (0.7 cm short); 8 cm past at 4.6 m/s |
+| Withers travel per diagonal | ≈ 6–9 cm | 13 cm | 7.7 cm |
+| Nose relative to the withers | small | 11.5 cm | 6.6 cm |
+
+Changes:
+
+- **Tracking up.** At the trot the hind stance sits further under the
+  body and the fore stance a little further back. The trunk settles 6 cm
+  (was 3 cm) to give the hind leg the reach.
+- **Bounce.** Less vertical bounce at the trot.
+- **Walk.** The same treatment improves tracking at the walk: the hind now
+  lands 7 cm short of the fore print at 1.6 m/s (was 17 cm) and past it from
+  about 2 m/s. A real medium walk over-tracks by 10–30 cm. The rest is held
+  back by the rig itself: its hip joint sits high (1.27 m), so the hind leg
+  is nearly fully extended at rest and can't swing far forward. Lowering
+  the hip in the rig is the next structural fix.
+
 ## Walk and trot
 
 | | Footage | Model |

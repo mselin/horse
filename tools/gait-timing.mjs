@@ -5,7 +5,9 @@
 // a fraction of the stride from the trailing hind's touchdown, duty factors
 // and the fraction of the stride with all four hooves off the ground; for the
 // asymmetric gaits also where in the stride the trunk pitches forehand-up most
-// and where the head is lowest relative to the withers.
+// and where the head is lowest relative to the withers; for walk and trot,
+// how far the hind hoof lands ahead of the print the fore on the same side
+// just left (tracking up), and the withers' vertical travel.
 // usage: node tools/gait-timing.mjs [gait speed]...
 import * as THREE from 'three';
 import { buildSkeleton } from '../src/horse/Horse.js';
@@ -28,13 +30,19 @@ for (const [gait, speed] of runs) {
   let prev = loco.legs.map((l) => l.stance);
   let air = 0, total = 0;
   const rows = [];
+  const landings = { LF: [], LH: [] };
+  const wy = [];
+  const wpos = new THREE.Vector3();
   const nose = new THREE.Vector3(), withers = new THREE.Vector3();
   const T = 6;
   for (let i = 0; i < T / dt; i++) {
     loco.update(dt);
     const st = loco.legs.map((l) => l.stance);
     st.forEach((s, k) => {
-      if (s && !prev[k]) ev[names[k]].push(['on', i]);
+      if (s && !prev[k]) {
+        ev[names[k]].push(['on', i]);
+        if (landings[names[k]]) landings[names[k]].push([i, loco.legs[k].toe.x]);
+      }
       if (!s && prev[k]) ev[names[k]].push(['off', i]);
     });
     if (!st.some(Boolean)) air++;
@@ -42,6 +50,7 @@ for (const [gait, speed] of runs) {
     nose.set(0.3, -0.45, 0).applyMatrix4(byName.head.matrixWorld);
     byName.neck0.getWorldPosition(withers);
     rows.push([i, loco.dbg.pitch, nose.y - withers.y]);
+    wy.push(withers.y);
     total++;
     prev = st;
   }
@@ -65,5 +74,16 @@ for (const [gait, speed] of runs) {
   const pk = (k, sign) => bins.reduce((best, b, j) => (sign * b[k] / b[2] > sign * bins[best][k] / bins[best][2] ? j : best), 0) / 20 + 0.025;
   const amp = (k) => { const v = bins.map((b) => b[k] / b[2]); return (Math.max(...v) - Math.min(...v)) / 2; };
   const rock = `pitch up at ${pk(0, 1).toFixed(2)} (±${(amp(0) * 57.3).toFixed(1)}°), head low at ${pk(1, -1).toFixed(2)} (±${(amp(1) * 100).toFixed(1)} cm)`;
-  console.log(`${gait.padEnd(6)} ${speed.toFixed(1).padStart(4)} m/s  ${(1 / (P * dt)).toFixed(2)} Hz  ${parts.join('  ')}  airborne ${(air / total).toFixed(2)}  ${rock}`);
+  let extra = rock;
+  if (gait === 'walk' || gait === 'trot') {
+    const d = [];
+    for (const [ih, xh] of landings.LH) {
+      const f = landings.LF.filter(([i]) => i < ih).pop();
+      if (f) d.push(xh - f[1]);
+    }
+    const track = (d.slice(-3).reduce((a, x) => a + x, 0) / Math.min(3, d.length)) * 100 * Math.sign(Math.cos(loco.yaw));
+    const last = wy.slice(-Math.round(2 * P));
+    extra = `hind lands ${track >= 0 ? '+' : ''}${track.toFixed(1)} cm past the fore print, withers travel ${((Math.max(...last) - Math.min(...last)) * 100).toFixed(1)} cm`;
+  }
+  console.log(`${gait.padEnd(6)} ${speed.toFixed(1).padStart(4)} m/s  ${(1 / (P * dt)).toFixed(2)} Hz  ${parts.join('  ')}  airborne ${(air / total).toFixed(2)}  ${extra}`);
 }
