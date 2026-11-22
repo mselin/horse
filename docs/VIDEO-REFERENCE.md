@@ -115,19 +115,23 @@ Changes:
   body and the fore stance a little further back. The trunk settles 6 cm
   (was 3 cm) to give the hind leg the reach.
 - **Bounce.** Less vertical bounce at the trot.
-- **Walk.** The same treatment improves tracking at the walk: the hind now
-  lands 7 cm short of the fore print at 1.6 m/s (was 17 cm) and past it from
-  about 2 m/s. A real medium walk over-tracks by 10–30 cm. The rest is held
-  back by the rig itself: its hip joint sits high (1.27 m), so the hind leg
-  is nearly fully extended at rest and can't swing far forward. Lowering
-  the hip in the rig is the next structural fix.
+- **Walk.** Tracking at the walk improved in two steps.
+  - The same stance changes as the trot.
+  - Later, slower and longer walk strides: 0.94 per second at 1.8 m/s, against
+    1.0 for the smaller brumbies in the footage. The hind leg's stifle and hock
+    now also open together in stance.
+  - Result: at a medium walk (1.8 m/s) the hind hoof lands 12 cm past the fore
+    print (published: 10–30 cm), and from about 1.6 m/s it lands in it or past.
+  - An earlier note blamed a high hip joint in the rig. The rig's hip height
+    and segment lengths agree with published hindlimb measurements, so it was
+    left as it is (see `MOTION-NOTES.md`).
 
 ## Walk and trot
 
 | | Footage | Model |
 | --- | --- | --- |
-| Walk stride frequency (`wha-03m50s…`, close dark bay, real time) | 1.0 Hz | 1.01 Hz at 1.6 m/s: unchanged |
-| Walk duty | — (published: ≈ 0.6) | was 0.54 front, 0.46 hind (reach-limited); now 0.60 front, 0.56 hind |
+| Walk stride frequency (`wha-03m50s…`, close dark bay, real time) | 1.0 Hz (smaller horses) | was 1.01 Hz at 1.6 m/s; now 0.94 Hz at the app's 1.8 m/s, a Thoroughbred's longer stride |
+| Walk duty | — (published: ≈ 0.6) | was 0.54 front, 0.46 hind (reach-limited); now 0.59 / 0.56 at 1.6 m/s and 0.55 / 0.52 at 1.8 m/s (the longer stride trades a little stance for the over-track) |
 | Trot stride frequency (`wha-17m30s…`, `wha-50m48s…`, real time) | ≈ 1.56 Hz | 1.57 Hz at 3.8 m/s: unchanged |
 | Trot duty, airborne share | — (published: ≈ 0.4–0.45, short suspension) | was 0.41 front, 0.37 hind, 0.15 airborne; now 0.42 front, 0.40 hind, 0.13 airborne |
 

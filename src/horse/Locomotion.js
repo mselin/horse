@@ -6,8 +6,10 @@
 //    space; stance length adapts to speed so a leg is never asked to reach
 //    past its length; planar two-bone IK with a soft limit near full
 //    extension; distal joints (carpus, hock, fetlock, coffin) follow C2-smooth
-//    curves; the swing hoof reaches slightly past its landing spot and
-//    retracts before touchdown.
+//    curves, and in stance the hind leg's hock opens together with the stifle
+//    (the reciprocal apparatus) when a long stance needs the length; the swing
+//    hoof reaches slightly past its landing spot and retracts before
+//    touchdown.
 //  * Body: loads on the legs drive a sprung trunk (bounce, pitch, roll, sway),
 //    a forward surge within each stride, lumbar flexion and lateral bending.
 //  * Neck, head and tail are cascades of springs, so motion travels along them
@@ -19,6 +21,9 @@ import { GAITS, GAIT_ORDER, GAIT_UP, GAIT_DOWN, LEGS, blendGait } from './gaits.
 import { FORE, HIND } from './rig.js';
 
 const TAU = Math.PI * 2;
+// How far the hock may open beyond its standing angle (~156 deg) in stance:
+// to ~172 deg, near the joint's limit
+const HOCK_EXT_MAX = 16 * (Math.PI / 180);
 const mod1 = (x) => ((x % 1) + 1) % 1;
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
 const smootherstep = (t) => {
@@ -92,9 +97,14 @@ class Leg {
       this.reachBonus = 0.13; // the scapula rotates, carrying the shoulder joint with it
     } else {
       this.pivot = [L.hip[0], L.hip[1]];
-      const comp = [L.coffin[0] - L.stifle[0], L.coffin[1] - L.stifle[1]];
+      // with the hock opened to its limit (see solveLeg): tibia and the
+      // cannon-pastern line turned back about the hock by HOCK_EXT_MAX
+      const c = Math.cos(-HOCK_EXT_MAX), sn = Math.sin(-HOCK_EXT_MAX);
+      const tib = [L.hock[0] - L.stifle[0], L.hock[1] - L.stifle[1]];
+      const dist = [L.coffin[0] - L.hock[0], L.coffin[1] - L.hock[1]];
+      const comp = [tib[0] + dist[0] * c - dist[1] * sn, tib[1] + dist[0] * sn + dist[1] * c];
       this.reach = len(this.v[0]) + len(comp);
-      this.reachBonus = 0.09; // the pelvis rocks (lumbosacral flexion), carrying the hip
+      this.reachBonus = 0.03; // the pelvis rocks (lumbosacral flexion), carrying the hip
     }
     this.restCoffinRel = L.coffin[0] - this.pivot[0];
 
@@ -516,12 +526,35 @@ export class Locomotion {
       const abs = hoofAbs - parentPitch - (a2 + carpus + fetlock);
       setZ(leg.bones[5], softClamp(abs * (1 - blendRel) + relCoffin * blendRel, -1.7, 0.6));
     } else {
-      const hock = st ? (hold ? 0 : 0.14 * p.hockFlex * Math.sin(Math.PI * s) ** 2) : p.hockFlex * sbump(w, 0.46);
+      let hock = st ? (hold ? 0 : 0.14 * p.hockFlex * Math.sin(Math.PI * s) ** 2) : p.hockFlex * sbump(w, 0.46);
       const [v0, v1, v2, v3] = V;
-      const c1 = Math.cos(hock), s1 = Math.sin(hock);
-      const c2 = Math.cos(hock + fetlock), s2 = Math.sin(hock + fetlock);
-      const Ex = v1[0] + v2[0] * c1 - v2[1] * s1 + v3[0] * c2 - v3[1] * s2;
-      const Ey = v1[1] + v2[0] * s1 + v2[1] * c1 + v3[0] * s2 + v3[1] * c2;
+      // stifle -> coffin for a hock angle (the fetlock as it is)
+      const comp = (h) => {
+        const c1 = Math.cos(h), s1 = Math.sin(h);
+        const c2 = Math.cos(h + fetlock), s2 = Math.sin(h + fetlock);
+        return [v1[0] + v2[0] * c1 - v2[1] * s1 + v3[0] * c2 - v3[1] * s2, v1[1] + v2[0] * s1 + v2[1] * c1 + v3[0] * s2 + v3[1] * c2];
+      };
+      if (st && !hold) {
+        // Reciprocal apparatus: the stifle and hock open together. When the
+        // planted hoof is beyond what the leg spans with its standing hock
+        // angle (start and end of a long stance), open the hock just enough,
+        // up to HOCK_EXT_MAX; the two-bone solve then opens the stifle.
+        const L1 = Math.hypot(v0[0], v0[1]);
+        const need = Math.hypot(T.x - P[0][0], T.y - P[0][1]) / 0.965 - L1;
+        const lenAt = (h) => Math.hypot(...comp(h));
+        if (lenAt(hock) < need) {
+          let lo = 0, hi = HOCK_EXT_MAX;
+          if (lenAt(hock - hi) <= need) lo = hi;
+          else
+            for (let it = 0; it < 10; it++) {
+              const mid = (lo + hi) / 2;
+              if (lenAt(hock - mid) < need) lo = mid;
+              else hi = mid;
+            }
+          hock -= lo;
+        }
+      }
+      const [Ex, Ey] = comp(hock);
       const { a1, a2 } = twoBone(P[0][0], P[0][1], T.x, T.y, v0, [Ex, Ey], 1);
       setZ(leg.bones[0], a1, roll);
       setZ(leg.bones[1], a2 - a1);

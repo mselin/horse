@@ -133,7 +133,9 @@ camera zooms in to 30 cm.
    - Swing is planned in the heading frame. The hoof follows through after
      lift-off, then reaches forward and retracts before landing.
    - Two-bone IK uses a soft limit near full extension. The joint curves
-     are C2-smooth.
+     are C2-smooth. In stance the hind leg's stifle and hock open together, as
+     the reciprocal apparatus links them in a real horse, so the leg lengthens
+     at the start and end of a long stance.
    - The trunk (bounce, pitch, roll, sway and surge) is a set of springs
      driven by the load on each leg. The neck and tail are spring
      cascades, so motion travels along them with lag and overshoot.

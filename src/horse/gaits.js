@@ -23,7 +23,7 @@ export const LEGS = ['LF', 'RF', 'LH', 'RH'];
 export const GAITS = {
   walk: {
     speed: [0.6, 2.1],
-    freq: (v) => 0.82 + 0.12 * v, // ~1.0 Hz at 1.5 m/s
+    freq: (v) => 0.72 + 0.12 * v, // ~0.94 Hz at 1.8 m/s (the brumbies in the footage, smaller, walk at 1.0)
     duty: { F: 0.6, H: 0.6 },
     dutyFast: { F: 0.6, H: 0.6 },
     phase: { LH: 0.0, LF: 0.25, RH: 0.5, RF: 0.75 },
