@@ -36,7 +36,8 @@ Only the measurements below come into the project.
    enlarged consecutive frames of one stride.
 5. **Rocking.** The heights of the nose, withers and croup were taken from
    the silhouette in every frame over about 5 strides, then averaged by stride
-   phase.
+   phase. Our horse is rendered without mane and tail for this, so both
+   silhouettes run from nose to buttock.
 6. **Our horse, same way.** `tools/gait-timing.mjs` gives the procedural
    gaits' footfalls, pitch and head motion. `preview.html?gait=…` with
    `window.__step(dt)` captures frames that go through the same silhouette
@@ -55,12 +56,61 @@ LF, RF.
 | All four hooves off the ground | ≈ 0.14–0.16 of the stride | 0.39 | 0.22 (0.18 at 4.6 m/s) |
 | Forehand highest | ≈ 0.7, late in the leading fore's stance | ≈ 0.2: opposite phase | 0.72 |
 | Forehand lowest | ≈ 0.05, as the trailing hind lands | ≈ 0.65 | ≈ 0.2 |
-| Head lowest relative to the withers | ≈ 0.7 | ≈ 0.25 | ≈ 0.7 |
+| Head lowest relative to the withers | ≈ 0.7 | ≈ 0.25 | ≈ 0.7 as first reported; really 0.83 (a measurement bug, see the second pass below) |
 | Croup height | nearly level: the trunk rocks about the hindquarters | large bounce | bounce reduced |
 
 The old canter spent about 40% of every stride in the air with short,
 stabbing stances. It looked floaty and bouncy next to the real horse, and its
 rocking ran backwards.
+
+## Canter, second pass: rocking, neck, hind swing and leads
+
+The other canter clips were checked for a second side-on horse, but none
+gives clean strides: the herd on the ridge (`wha-18m00s…`) overlaps
+throughout, the grey (`wha-22m49s…`) crosses the frame behind logs in about
+one stride, and the close bays (`wha-18m32s…`) fill the frame. The young bay
+in `wha-02m25s…` stays the reference. Its five strides were compared with
+ours phase by phase, side by side, and by silhouette.
+
+For the silhouette, the horse's length is taken from nose to buttock. Ours is
+rendered without mane and tail so it is cut the same way as the bay, whose
+black tail and mane fall outside the colour mask. The "head" window now
+takes only pixels above the chest: a fore hoof reaching forward under the
+nose had been pulled into it. Footage: 5 strides; ours: 3 strides at 5.0 m/s.
+
+| | Footage | Before | After |
+| --- | --- | --- | --- |
+| Withers region, rise and fall (% of body length) | 14.2 | 8.8 | 12.5 |
+| Croup, rise and fall (% of body length) | 3.9 | 3.1 | 3.1 |
+| Trunk pitch (skeleton) | — (published pelvic pitch range at the canter: 15–16°) | ±4.9° | ±7.8° |
+| Head lowest against the withers (skeleton) | ≈ 0.7 (silhouette) | 0.83, ±4 cm | 0.68, ±18 cm |
+| Head against the neck, silhouette (% of body length, lowest at) | 9.1 at 0.7 | 2.2 at 0.8 | 4.2 at 0.9 |
+| Neck and head | neck low, nose well out in front | neck upright, face near vertical | neck low, nose out |
+| Hind hooves at 0.7 | extended far behind the buttock, soles up | already under the hip | extended behind the buttock |
+| Leading fore | lands well ahead of the other fore | lands level with it | lands 10 cm ahead |
+
+The silhouette's head window covers the whole head, so its reading changes
+with the angle the face is carried at as well as with its height. The
+skeleton figures (`npm run gait-timing`) say where the head really is.
+
+Changes:
+
+- **Rocking about the hindquarters.** The canter pitch is ±7.8° (was ±4.9°),
+  about a point 0.34 m behind the trunk's centre, over the loins, so the
+  withers rise and fall about three times as much as the croup.
+- **Neck and head.** The neck is carried lower and swings down as the
+  forehand rises (nod 0.4 rad, was 0.16), and the face opens, nose out.
+- **Hind swing.** After lift-off the hind keeps moving back for about a
+  third of its swing, as far as the leg can reach with the hoof raised, then
+  folds forward fast. The hoof lifts 22 cm (was 16).
+- **Leads.** Canter and gallop now have a lead. On a turn the horse strikes
+  off on the inside lead with the outside hind as the first beat, and when
+  the turn reverses it makes a flying change in the air. The leading fore
+  lands 5 cm further forward and the trailing fore 5 cm further back, after
+  Back et al. 1997 (see `RESOURCES.md`). The hinds use their full reach at
+  the canter, so they have no room for the same shift.
+- **Unchanged:** footfall timing, duty factor (0.39–0.41 at 5.0 m/s) and
+  suspension (0.22).
 
 ## Gallop: bay, side-on, long lens over red desert (`wha-00m57s…`)
 
@@ -75,7 +125,7 @@ typical gallop rate.
 | Suspension | one, legs gathered under the body; short, ≈ 0.15–0.25 of the stride (11 frames a stride limit the precision) | 0.35 | 0.32 (0.25 at 10 m/s) |
 | Duty factor | — (published at race speed: ≈ 0.2–0.25) | 0.19–0.20 | 0.22–0.23 (0.28–0.29 at 10 m/s) |
 | Forehand highest | ≈ 0.8 | 0.68 (set by analogy with the canter) | 0.78 |
-| Head lowest relative to the withers | ≈ 0.8 | 0.78 | 0.83 |
+| Head lowest relative to the withers | ≈ 0.8 | — | 0.6–0.7, with a third of the footage's swing (see the note below) |
 | Neck and head | neck long and low, nose pushed out in front, face well off vertical | neck lowered but the head tucked, face near vertical | neck long and low, head opened, nose out |
 
 Changes:
@@ -90,6 +140,13 @@ Changes:
   - Neck carriage is lower at the gallop, and the nod is larger.
   - The head now cancels the neck's static lowering in full and opens at
     speed. Before, lowering the neck dragged the face toward vertical.
+
+Note: the 0.78 and 0.83 first given for the head were wrong.
+`tools/gait-timing.mjs` read the head's position before the neck had been
+updated for the frame. Measured again by silhouette, the head of our gallop
+swings against the neck by 4.4% of body length, lowest at 0.6–0.7; in the
+footage it swings 12.6%, lowest at 0.7–0.9. The gallop's neck swing is
+left for a later pass.
 
 ## Trot: brumbies along a skyline, side-on (`wha-50m48s…`), real time
 
@@ -186,3 +243,5 @@ Footfalls taken from them would not be a real horse's.
   sink, heel-first landing.
 - Behaviour: the alert stance in `wha-23m57s…`, sparring in `wha-00m18s…`, a
   foal lying down in `wha-22m55s…`.
+- A second side-on canter: the other canter clips have no horse clear of the
+  herd for a full stride.

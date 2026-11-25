@@ -453,7 +453,8 @@ function frame() {
   world.update(dt, focus, horse.group.position, camera);
   grade.uniforms.uTime.value = clock.getElapsed();
 
-  hudGait.textContent = loco.standing ? 'Standing' : loco.gaitName;
+  const leadText = loco.gaitName === 'canter' || loco.gaitName === 'gallop' ? ` · ${loco.lead > 0 ? 'right' : 'left'} lead` : '';
+  hudGait.textContent = loco.standing ? 'Standing' : loco.gaitName + leadText;
   hudSpeed.textContent = `${(loco.speed * 3.6).toFixed(0)} km/h`;
   hudSlow.textContent = state.slowmo > 1 ? `Slow motion ${+state.slowmo.toFixed(1)}×` : '';
 

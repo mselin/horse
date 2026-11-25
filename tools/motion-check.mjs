@@ -31,6 +31,7 @@ const prevStance = loco.legs.map(() => false); // no comparison on the first fra
 const stats = {};
 const stat = (g) => (stats[g] ??= { frames: 0, ikSum: 0, ikMax: 0, slipMax: 0 });
 let nan = 0, trunkAccelMax = 0, prevVy = 0, prevY = 0, frame = 0;
+let leadOnLeftTurn = null;
 for (const [speed, steer, secs] of plan) {
   loco.targetSpeed = speed;
   loco.steer = steer;
@@ -55,6 +56,8 @@ for (const [speed, steer, secs] of plan) {
     prevY = y;
     prevVy = vy;
   }
+  // cantering on a left turn: the horse should have changed to the left lead
+  if (speed > 5 && speed < 9 && steer > 0) leadOnLeftTurn = loco.lead;
 }
 const all = Object.values(stats).reduce((a, s) => ({ frames: a.frames + s.frames, ikSum: a.ikSum + s.ikSum, ikMax: Math.max(a.ikMax, s.ikMax), slipMax: Math.max(a.slipMax, s.slipMax) }), { frames: 0, ikSum: 0, ikMax: 0, slipMax: 0 });
 const report = {
@@ -65,16 +68,20 @@ const report = {
   trunkAccelMax: +trunkAccelMax.toFixed(1),
   nonFinite: nan,
   settledAfterHalt: loco.standing,
+  leadOnLeftTurn: leadOnLeftTurn < 0 ? 'left' : 'right',
+  leadChanges: loco.leadChanges,
 };
 const failures = [];
 for (const [k, lim] of Object.entries(LIMITS)) if (report[k] > lim) failures.push(`${k} = ${report[k]} exceeds ${lim}`);
 if (nan) failures.push(`${nan} non-finite bone matrix entries`);
 if (!report.settledAfterHalt) failures.push('the horse did not settle after the halt');
+if (report.leadOnLeftTurn !== 'left') failures.push('cantering on a left turn, the horse is not on the left lead');
 if (process.argv.includes('--json')) console.log(JSON.stringify(report, null, 2));
 else {
   console.log('gait      ik mean   ik max   stance slip');
   for (const [g, s] of Object.entries(report.perGait)) console.log(`${g.padEnd(8)} ${(s.ikErrMean * 100).toFixed(2).padStart(6)} cm ${(s.ikErrMax * 100).toFixed(1).padStart(6)} cm ${(s.stanceSlipMax * 100).toFixed(1).padStart(8)} cm`);
   console.log(`trunk vertical acceleration max ${report.trunkAccelMax} m/s², settled after halt: ${report.settledAfterHalt}`);
+  console.log(`lead on a left turn at canter: ${report.leadOnLeftTurn}, flying changes: ${report.leadChanges}`);
 }
 if (failures.length) {
   console.error('motion check failed:\n  ' + failures.join('\n  '));
