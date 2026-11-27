@@ -17,7 +17,7 @@ Add to there to fix the gait dropdown
 1. Branch `gait-dropdown` from `main` c93f4fb, record task and plan. Check: this file committed on the branch. **Done.**
 2. Smoke test: assert the Gait dropdown shows the gait the page runs (`?gait=3` → "Canter"). Check: `npm run test:smoke` fails on `main`'s code. **Done: fails with "Gait dropdown shows Standing, expected Canter".**
 3. Fix: bind the dropdown to an object that `setGaitIndex` keeps current, and let lil-gui `listen()` for changes. Check: smoke test passes; keys, demo tour and the dropdown itself all update it. **Done.**
-4. Docs, push, PR. Check: PR open, All checks passed green; merge when the owner says "merge it". **In progress.**
+4. Docs, push, PR. Check: PR open, All checks passed green; merge when the owner says "merge it". **PR #12 open; waiting for checks.**
 
 ## Established
 
@@ -53,7 +53,7 @@ Add to there to fix the gait dropdown
 
 ## Changes
 
-- `horse`, branch `gait-dropdown` (from `main` c93f4fb): Gait dropdown follows the gait (src/main.js); smoke test fails if the dropdown does not show the canter it runs (tests/smoke.mjs); README checks table says so; this file.
+- `horse`, branch `gait-dropdown` (from `main` c93f4fb): Gait dropdown follows the gait (src/main.js); smoke test fails if the dropdown does not show the canter it runs (tests/smoke.mjs); README checks table says so; this file. PR: https://github.com/mselin/horse/pull/12.
 - Merged before this task: #11 `gallop-neck` (merge commit c93f4fb): gallop `nod` 0.2 → 0.45, `nodPeak` 0.5 → 0.6 (src/horse/gaits.js:149, :163), with the "Gallop, second pass: neck swing" section in `docs/VIDEO-REFERENCE.md`.
 
 ## Verification
@@ -63,7 +63,7 @@ Add to there to fix the gait dropdown
 - The same run showed the bug this task fixes: the panel's Gait dropdown read "Standing" while the horse galloped.
 - `npm run build && npm run test:smoke`: on `main`'s `src/main.js` fails ("Gait dropdown shows Standing, expected Canter"); with the fix passes (dropdown "Canter").
 - Built app driven in headless Chromium (scratch `dropdown-check.cjs` against `vite preview`): demo tour at load shows Walk; keys 5, ArrowDown, Space, W show Gallop, Canter, Standing, Walk; choosing Trot and Gallop from the dropdown sets target speed 3.8 and 13.5 m/s; no page or console errors.
-- Not yet run: CI on the PR.
+- Not yet known: the checks on PR #12 (`gh api repos/mselin/horse/commits/<head>/check-runs`).
 
 ## Dead ends
 
@@ -81,7 +81,7 @@ Add to there to fix the gait dropdown
 
 ## Next
 
-Push `gait-dropdown`, open the PR, wait for All checks passed, and merge (merge commit) when the owner says "merge it".
+Wait for All checks passed on PR #12 (`gait-dropdown`) and merge (merge commit) when the owner says "merge it"; then confirm `main`'s checks and Publish the horse.
 
 Candidates after this task, from the roadmap:
 - Gallop trunk pitch: the footage's withers window rises about twice as much as ours (10.7% against 5.2%); needs a cleaner side-on gallop to separate trunk pitch from neck motion.
