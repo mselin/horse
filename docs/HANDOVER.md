@@ -14,7 +14,7 @@ Bootstrap only: create the handover docs in horse from the design doc, roadmap a
 
 1. Create `docs/HANDOVER-PROTOCOL.md` from sections 2–5 of the short-context skill. Check: file exists, text matches the skill. **Done.**
 2. Create `docs/HANDOVER.md` from README, MOTION-NOTES and `git log`. Check: all eight sections, under 150 lines. **Done.**
-3. Commit on `docs/handover`, push, open a PR. Check: PR open, **All checks passed** green. **PR open; checks running.**
+3. Commit on `docs/handover`, push, open a PR. Check: PR open, **All checks passed** green. **Done: PR #10 open, All checks passed green.**
 
 ## Established
 
@@ -45,8 +45,9 @@ Bootstrap only: create the handover docs in horse from the design doc, roadmap a
 
 ## Verification
 
-- Docs-only change; CI (html-validate, motion check, build, smoke test) to run on the PR.
-- PR #9's deploy to Pages was still running when this branch was cut; check the `main` run if it matters.
+- PR #10 (docs only): Site checks, Build and browser smoke test, All checks passed: success.
+- `main` at e9b712c (PR #9, canter): all checks and Publish the horse succeeded; the canter changes are live.
+- Unverified: nothing for this docs-only change.
 
 ## Dead ends
 
