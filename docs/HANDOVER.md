@@ -52,7 +52,7 @@ continue
 
 ## Changes
 
-- `horse`, branch `gallop-neck` (from `main` a7041e6): gallop `nod` 0.2 → 0.45 and `nodPeak` 0.5 → 0.6 (src/horse/gaits.js:149, :163); `docs/VIDEO-REFERENCE.md` gets "Gallop, second pass: neck swing" and a not-yet-measured item (gallop trunk pitch); `docs/MOTION-NOTES.md` gallop row and checklist updated. PR: to be opened.
+- `horse`, branch `gallop-neck` (from `main` a7041e6): gallop `nod` 0.2 → 0.45 and `nodPeak` 0.5 → 0.6 (src/horse/gaits.js:149, :163); `docs/VIDEO-REFERENCE.md` gets "Gallop, second pass: neck swing" and a not-yet-measured item (gallop trunk pitch); `docs/MOTION-NOTES.md` gallop row and checklist updated. PR: https://github.com/mselin/horse/pull/11.
 
 ## Verification
 
@@ -80,7 +80,7 @@ continue
 
 ## Next
 
-Wait for green on the `gallop-neck` PR and merge when the owner says "merge it". Then pick from the candidates below.
+Wait for green on PR #11 (`gallop-neck`) and merge when the owner says "merge it". Then pick from the candidates below.
 
 Other candidates from the roadmap:
 - Gallop trunk pitch: the footage's withers window rises about twice as much as ours (10.7% against 5.2%); needs a cleaner side-on gallop to separate trunk pitch from neck motion.
