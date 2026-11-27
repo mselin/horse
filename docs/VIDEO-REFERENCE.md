@@ -125,7 +125,7 @@ typical gallop rate.
 | Suspension | one, legs gathered under the body; short, ≈ 0.15–0.25 of the stride (11 frames a stride limit the precision) | 0.35 | 0.32 (0.25 at 10 m/s) |
 | Duty factor | — (published at race speed: ≈ 0.2–0.25) | 0.19–0.20 | 0.22–0.23 (0.28–0.29 at 10 m/s) |
 | Forehand highest | ≈ 0.8 | 0.68 (set by analogy with the canter) | 0.78 |
-| Head lowest relative to the withers | ≈ 0.8 | — | 0.6–0.7, with a third of the footage's swing (see the note below) |
+| Head lowest relative to the withers | ≈ 0.8 | — | 0.6–0.7, with a third of the footage's swing; 0.7–0.9 with the footage's swing after the second pass (below) |
 | Neck and head | neck long and low, nose pushed out in front, face well off vertical | neck lowered but the head tucked, face near vertical | neck long and low, head opened, nose out |
 
 Changes:
@@ -145,8 +145,45 @@ Note: the 0.78 and 0.83 first given for the head were wrong.
 `tools/gait-timing.mjs` read the head's position before the neck had been
 updated for the frame. Measured again by silhouette, the head of our gallop
 swings against the neck by 4.4% of body length, lowest at 0.6–0.7; in the
-footage it swings 12.6%, lowest at 0.7–0.9. The gallop's neck swing is
-left for a later pass.
+footage it swings 12.6%, lowest at 0.7–0.9. The second pass below fixes
+this.
+
+### Gallop, second pass: neck swing
+
+Measured the same way on both: the silhouette is traced (ours rendered with
+`?nohair` and mirrored to face left like the footage), and heights are
+binned by stride phase from the trailing hind's touchdown, in % of the
+nose-to-buttock length. "Withers" is the top of the outline 30–40% of the
+way back from the nose; "head" is the mean height of the front 8%.
+
+| At 13.5 m/s | Footage | Before (`nod` 0.2, `nodPeak` 0.5) | After (`nod` 0.45, `nodPeak` 0.6) |
+| --- | --- | --- | --- |
+| Head above withers, swing | 12.6% | 4.1% | 13.1% |
+| Head above withers, lowest | 0.7–0.9 | 0.6–0.7 | 0.7–0.9 (lowest at 0.8) |
+| Withers, swing (highest) | 10.7% (0.7–0.9) | 6.5% (0.7–0.8) | 5.2% (0.7–0.9) |
+| Nose against the base of the neck (skeleton, `npm run gait-timing`) | — | ±3.3 cm, low at 0.48 | ±18 cm, low at 0.88 |
+
+- **Why the swing was small.** As the forehand rises, the trunk's pitch
+  lifts the head, which sits far ahead of the withers, and the neck's
+  stride swing lowers it. At `nod` 0.2 the two nearly cancelled, so the
+  head moved with the withers. The swing grows quickly with `nod`
+  (skeleton: 2.6%, 11.5% and 20.5% of body length at 0.2, 0.4 and 0.6).
+  0.45 matches the footage and is close to the canter's 0.4.
+- **Timing.** `nodPeak` 0.6 puts the head's low point at 0.8, in the
+  middle of the footage's 0.7–0.9, with the forehand highest at 0.78 as
+  before.
+- **Phase-aligned pairs** show the same thing: the neck is raised over the
+  first third of the stride and lowest through the leading fore's stance
+  and lift-off, as in the footage.
+- **At other speeds** the swing stays close: ±20 cm at 10 m/s and ±17 cm at
+  16 m/s (skeleton).
+- **Unchanged:** trunk pitch (±3.5°), footfall timing, duty factor and
+  suspension.
+- **Still apart:** the footage's "withers" window rises about twice as
+  much as ours. On a horse galloping with its neck stretched, that window
+  lies on the upper neck as much as on the withers, and the croup trace of
+  this clip is too noisy to tell how much of the rise is trunk pitch, so
+  the pitch was left as it is.
 
 ## Trot: brumbies along a skyline, side-on (`wha-50m48s…`), real time
 
@@ -245,3 +282,5 @@ Footfalls taken from them would not be a real horse's.
   foal lying down in `wha-22m55s…`.
 - A second side-on canter: the other canter clips have no horse clear of the
   herd for a full stride.
+- Gallop trunk pitch: the desert gallop's croup trace is too noisy to
+  separate trunk pitch from neck motion in the withers' rise.
