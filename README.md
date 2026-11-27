@@ -209,7 +209,7 @@ locomotion, hair and world code stay as they are.
 | Job | What it checks |
 | --- | --- |
 | Site checks | HTML against the standard, with html-validate |
-| Build and browser smoke test | `npm run test:motion`, then `npm run build` and `npm run test:smoke`. **The motion check** drives the locomotion headless through every gait, turns and a halt, and fails on reach error, planted-hoof slip, trunk acceleration spikes, NaNs, a horse that doesn't settle, or a canter on a left turn that isn't on the left lead. **The smoke test** loads the built site in headless Chromium with software WebGL, bakes the horse, canters, renders a frame, and fails on any page or console error |
+| Build and browser smoke test | `npm run test:motion`, then `npm run build` and `npm run test:smoke`. **The motion check** drives the locomotion headless through every gait, turns and a halt, and fails on reach error, planted-hoof slip, trunk acceleration spikes, NaNs, a horse that doesn't settle, or a canter on a left turn that isn't on the left lead. **The smoke test** loads the built site in headless Chromium with software WebGL, bakes the horse, canters, renders a frame, and fails on any page or console error or if the Gait dropdown does not show the canter |
 | All checks passed | Succeeds only if every job above did. This is the check that merging requires |
 | Publish the horse | On `main` only, after all checks pass: deploys `dist/` with GitHub Pages to https://mselin.github.io/horse/ |
 

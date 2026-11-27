@@ -34,10 +34,20 @@ try {
     for (const b of horse.skeleton.bones) for (const e of b.matrixWorld.elements) if (!Number.isFinite(e)) nan++;
     return { verts: horse.geometry.attributes.position.count, gait: loco.gaitName, speed: loco.speed, nan };
   });
-  console.log('smoke:', JSON.stringify(info));
+  // the panel's Gait dropdown must show the gait the page runs (?gait=3);
+  // lil-gui refreshes listened controllers on its own animation frame
+  const gaitShown = () =>
+    page.evaluate(() => {
+      const c = [...document.querySelectorAll('.lil-controller')].find((e) => e.querySelector('.lil-name')?.textContent === 'Gait');
+      return c ? c.querySelector('select').selectedOptions[0]?.textContent ?? '(nothing)' : 'no Gait dropdown';
+    });
+  let shown = await gaitShown();
+  for (let i = 0; i < 20 && shown !== 'Canter'; i++) shown = (await sleep(100), await gaitShown());
+  console.log('smoke:', JSON.stringify({ ...info, dropdown: shown }));
   if (info.verts < 20000) errors.push(`mesh too small: ${info.verts} vertices`);
   if (info.nan) errors.push(`${info.nan} non-finite bone matrix entries`);
   if (info.gait !== 'canter') errors.push(`expected canter, got ${info.gait}`);
+  if (shown !== 'Canter') errors.push(`Gait dropdown shows ${shown}, expected Canter`);
 } catch (e) {
   errors.push(String(e));
 } finally {
