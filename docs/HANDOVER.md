@@ -14,7 +14,7 @@ Bootstrap only: create the handover docs in horse from the design doc, roadmap a
 
 1. Create `docs/HANDOVER-PROTOCOL.md` from sections 2–5 of the short-context skill. Check: file exists, text matches the skill. **Done.**
 2. Create `docs/HANDOVER.md` from README, MOTION-NOTES and `git log`. Check: all eight sections, under 150 lines. **Done.**
-3. Commit on `docs/handover`, push, open a PR. Check: PR open, **All checks passed** green. **In progress.**
+3. Commit on `docs/handover`, push, open a PR. Check: PR open, **All checks passed** green. **PR open; checks running.**
 
 ## Established
 
@@ -41,7 +41,7 @@ Bootstrap only: create the handover docs in horse from the design doc, roadmap a
 
 ## Changes
 
-- `horse`, branch `docs/handover`: adds `docs/HANDOVER-PROTOCOL.md` and `docs/HANDOVER.md`. Docs only, no code changes. PR: to be filled in when opened.
+- `horse`, branch `docs/handover`: adds `docs/HANDOVER-PROTOCOL.md` and `docs/HANDOVER.md`. Docs only, no code changes. PR: https://github.com/mselin/horse/pull/10 (awaiting the owner's "merge it").
 
 ## Verification
 
