@@ -8,13 +8,17 @@ and "Known gaps" at the end of `docs/MOTION-NOTES.md`.
 
 ## Task
 
-Bootstrap only: create the handover docs in horse from the design doc, roadmap and git log. No code changes. Open a PR.
+continue
+
+(Taken as: start the item under "Next", the gallop neck swing.)
 
 ## Plan
 
-1. Create `docs/HANDOVER-PROTOCOL.md` from sections 2–5 of the short-context skill. Check: file exists, text matches the skill. **Done.**
-2. Create `docs/HANDOVER.md` from README, MOTION-NOTES and `git log`. Check: all eight sections, under 150 lines. **Done.**
-3. Commit on `docs/handover`, push, open a PR. Check: PR open, **All checks passed** green. **Done: PR #10 open, All checks passed green.**
+1. Branch `gallop-neck`, record task and plan. Check: this file committed on the branch. **Done.**
+2. Baseline: silhouette head-vs-withers swing of the footage (`seg03`, desert gallop) and of ours at 13.5 m/s, plus `npm run gait-timing -- gallop 13.5`. Check: numbers under Established. **In progress.**
+3. Tune the gallop neck (`nod`, `nodPeak`, `headOpen`, neck dynamics if needed) so the head swings about 10–13% of body length against the withers, lowest at 0.7–0.9, forehand still highest at ≈0.8. Check: silhouette numbers, gait-timing, `npm run test:motion` passes.
+4. Look at phase-aligned pairs against the footage. Check: images viewed, differences noted.
+5. Docs (`VIDEO-REFERENCE.md`, `MOTION-NOTES.md`, this file), push, PR. Check: PR open, All checks passed green.
 
 ## Established
 
@@ -38,16 +42,16 @@ Bootstrap only: create the handover docs in horse from the design doc, roadmap a
   - #7 trot tracks up, hind-leg artefact removed
   - #8 hock opens with the stifle in stance; longer walk stride
   - #9 canter rocking about the hindquarters, low neck, hind follow-through, leads and flying changes; gait-timing head-position fix
+  - #10 handover docs
 
 ## Changes
 
-- `horse`, branch `docs/handover`: adds `docs/HANDOVER-PROTOCOL.md` and `docs/HANDOVER.md`. Docs only, no code changes. PR: https://github.com/mselin/horse/pull/10 (awaiting the owner's "merge it").
+- `horse`, branch `gallop-neck` (from `main` a7041e6): handover plan only so far.
 
 ## Verification
 
-- PR #10 (docs only): Site checks, Build and browser smoke test, All checks passed: success.
-- `main` at e9b712c (PR #9, canter): all checks and Publish the horse succeeded; the canter changes are live.
-- Unverified: nothing for this docs-only change.
+- `main` at a7041e6 (PR #10, handover docs): all checks and Publish the horse succeeded.
+- Nothing run on `gallop-neck` yet.
 
 ## Dead ends
 
