@@ -10,8 +10,11 @@
 //    (the reciprocal apparatus) when a long stance needs the length; the swing
 //    hoof reaches slightly past its landing spot and retracts before
 //    touchdown.
+//  * Leads: canter and gallop run on the inside lead of a turn, strike off
+//    with the outside hind and make flying changes in the air.
 //  * Body: loads on the legs drive a sprung trunk (bounce, pitch, roll, sway),
-//    a forward surge within each stride, lumbar flexion and lateral bending.
+//    a forward surge within each stride, lumbar flexion and lateral bending;
+//    at the canter the trunk rocks about a point over the loins.
 //  * Neck, head and tail are cascades of springs, so motion travels along them
 //    with natural lag and overshoot (follow-through), and they react to the
 //    trunk's acceleration. The head is stabilised like a real horse's.
@@ -21,6 +24,13 @@ import { GAITS, GAIT_ORDER, GAIT_UP, GAIT_DOWN, LEGS, blendGait } from './gaits.
 import { FORE, HIND } from './rig.js';
 
 const TAU = Math.PI * 2;
+// mirror image of each leg: a left-lead canter is the right-lead pattern with
+// the sides swapped
+const MIRROR = { LF: 'RF', RF: 'LF', LH: 'RH', RH: 'LH' };
+// turn rate (rad/s) above which the horse wants the inside lead, and how long
+// (s) a turn against the current lead must last before a flying change
+const LEAD_TURN = 0.08;
+const LEAD_DELAY = 0.5;
 // How far the hock may open beyond its standing angle (~156 deg) in stance:
 // to ~172 deg, near the joint's limit
 const HOCK_EXT_MAX = 16 * (Math.PI / 180);
@@ -122,6 +132,8 @@ class Leg {
     this.w = 0;
     this.load = 0;
     this.scap = new Spring();
+    this.leadOff = 0; // stance shift for leading (+) or trailing (-) at canter and gallop
+    this.retime = 0; // swing rate fixed for a flying change, until touchdown
     this.psi = 0; // this leg's own position in its stride cycle (0..1, stance first)
   }
 }
@@ -149,6 +161,12 @@ export class Locomotion {
     this.standing = true;
     this.time = 0;
     this.listeners = [];
+    // lead at canter and gallop: 1 = right (the right legs lead), -1 = left
+    this.lead = 1;
+    this.leadTimer = 0;
+    this.changeLead = false;
+    this.leadChanges = 0;
+    this.strikeOff = false;
 
     // sprung body & chains
     this.s = {
@@ -181,6 +199,12 @@ export class Locomotion {
     this.resetFeet();
   }
 
+  // the leg whose footfall timing this leg follows: at canter and gallop on
+  // the left lead, the mirror-image leg of the (right-lead) footfall table
+  role(leg, g) {
+    return this.lead < 0 && g.rockPeak !== undefined ? MIRROR[leg.name] : leg.name;
+  }
+
   onFootfall(fn) {
     this.listeners.push(fn);
   }
@@ -204,6 +228,8 @@ export class Locomotion {
     if (this.forcedGait) name = this.forcedGait;
     if (name !== this.gaitName) {
       this.prevGait = { ...this.params, duty: { ...this.params.duty }, dutyFast: { ...this.params.dutyFast }, phase: { ...this.params.phase }, swingH: { ...this.params.swingH }, stanceShift: { ...this.params.stanceShift } };
+      // striking off into canter or gallop from a symmetric gait
+      this.strikeOff = GAITS[name].rockPeak !== undefined && GAITS[this.gaitName].rockPeak === undefined;
       this.gaitName = name;
       this.gaitBlend = 0;
     }
@@ -237,6 +263,31 @@ export class Locomotion {
     const g = GAITS[this.gaitName];
     this.gaitBlend = Math.min(1, this.gaitBlend + dt * 1.25);
     const p = blendGait(this.prevGait, g, smootherstep(this.gaitBlend), this.params);
+    // ---- lead: on a turn, canter and gallop on the inside lead ----
+    // (positive yaw rate turns left). The lead is picked as the horse strikes
+    // off from a symmetric gait; at canter and gallop a turn against the lead
+    // asks for a flying change, made in the next suspension (below).
+    const asym = g.rockPeak !== undefined;
+    const turnLead = Math.abs(this.yawRate) > LEAD_TURN ? (this.yawRate > 0 ? -1 : 1) : 0;
+    if (!asym) {
+      if (turnLead) this.lead = turnLead;
+      this.leadTimer = 0;
+      this.changeLead = false;
+    } else if (turnLead && turnLead !== this.lead) {
+      this.leadTimer += dt;
+      if (this.leadTimer > LEAD_DELAY) this.changeLead = true;
+    } else {
+      this.leadTimer = 0;
+      this.changeLead = false;
+    }
+    // Strike-off: the first beat of the canter is the outside hind (the
+    // trailing hind of the new lead). Anchor the stride phase on that leg, so
+    // it keeps its rhythm and the others re-time around it.
+    if (this.strikeOff) {
+      this.strikeOff = false;
+      const trailing = this.legs.find((l) => this.role(l, g) === 'LH');
+      this.phase = trailing.psi;
+    }
     const fTarget = g.freq(clamp(Math.max(v, 0.9), g.speed[0], g.speed[1]));
     this.freq += (fTarget - this.freq) * Math.min(1, dt * 3);
 
@@ -273,12 +324,36 @@ export class Locomotion {
       // sets where it should be; a leg only catches up (or waits) while it is
       // in the air, never while planted. Gait changes therefore happen within
       // about one stride, leg by leg, instead of cross-fading two patterns.
+      // Flying change: swap the lead while all four hooves are off the
+      // ground. Each leg (all in swing) is retimed to land exactly on the new
+      // pattern: the old leading hind lands first, then the new leading pair.
+      // The change waits for a suspension early enough that every leg can be
+      // retimed within its limits.
+      if (this.changeLead && asym && this.legs.every((l) => !l.stance)) {
+        this.lead = -this.lead;
+        const rates = this.legs.map((leg) => {
+          let err = mod1(this.phase - g.phase[this.role(leg, g)]) - leg.psi;
+          err -= Math.round(err);
+          const rem = 1 - leg.psi;
+          return rem - err > 0.02 ? rem / (rem - err) : Infinity;
+        });
+        if (rates.every((r) => r >= 0.4 && r <= 2.5)) {
+          this.legs.forEach((leg, i) => (leg.retime = rates[i]));
+          this.changeLead = false;
+          this.leadTimer = 0;
+          this.leadChanges++;
+        } else this.lead = -this.lead;
+      }
       for (const leg of this.legs) {
-        const target = mod1(this.phase - g.phase[leg.name]);
+        const target = mod1(this.phase - g.phase[this.role(leg, g)]);
         let err = target - leg.psi;
         err -= Math.round(err);
         const inSwing = leg.psi >= this.duty[leg.key];
-        const rate = inSwing ? clamp(1 + 2.5 * err, 0.55, 1.9) : 1;
+        let rate = inSwing ? clamp(1 + 2.5 * err, 0.55, 1.9) : 1;
+        if (leg.retime) {
+          if (inSwing) rate = leg.retime;
+          else leg.retime = 0;
+        }
         leg.psi = mod1(leg.psi + this.freq * rate * dt);
       }
     } else {
@@ -286,6 +361,7 @@ export class Locomotion {
       for (const leg of this.legs) if (leg.stance) leg.hold = true;
     }
     const mv = moving ? clamp(v / 1.0, 0, 1) : 0;
+    this.mv = mv;
 
     // ---- root motion, with a small forward surge inside each stride ----
     const surge = 1 + p.surge * mv * Math.sin(TAU * p.surgeHarm * (this.phase - 0.15));
@@ -299,7 +375,10 @@ export class Locomotion {
     for (const leg of this.legs) {
       const X = this.legReach(leg, drop);
       const travel = moving ? (v * duty[leg.key]) / this.freq : 0;
-      const wantCentre = leg.restCoffinRel + (stopping ? 0 : p.stanceShift[leg.key] * mv);
+      // at canter and gallop the leading legs reach further forward and the
+      // trailing legs further back (Back et al. 1997)
+      leg.leadOff += ((leg.side === this.lead ? 1 : -1) * p.leadReach - leg.leadOff) * Math.min(1, dt * 3);
+      const wantCentre = leg.restCoffinRel + (stopping ? 0 : (p.stanceShift[leg.key] + leg.leadOff) * mv);
       const half = Math.min(travel / 2, X * 0.95);
       const centre = clamp(wantCentre, -X + half, X - half);
       leg.landRel.set(leg.pivot[0] + centre + half, leg.toeToCoffin[1], leg.restToe.z);
@@ -386,7 +465,10 @@ export class Locomotion {
       : (1 - locked) * Math.sin(this.time * (4 + v * 0.3)) * 0.0015 + locked * Math.sin(TAU * (this.phase - 0.25)) * 0.003;
     this.jiggle.step(0, dt, 5.5, 0.22, -this.bodyAy * 0.35);
     const body = B.body;
-    body.position.set(body.userData.restLocal.x, body.userData.restLocal.y + y + breathe, body.userData.restLocal.z + sway);
+    // rock about a point behind the trunk's centre (p.rockPivot metres back),
+    // so the croup moves much less than the withers
+    const pivotLift = p.rockPivot * Math.sin(pitch) * mv;
+    body.position.set(body.userData.restLocal.x, body.userData.restLocal.y + y + breathe + pivotLift, body.userData.restLocal.z + sway);
     _e.set(roll + lean, 0, pitch, 'XYZ');
     body.quaternion.setFromEuler(_e);
 
@@ -427,7 +509,7 @@ export class Locomotion {
     // The head cancels the neck's static lowering in full (only the stride's
     // nod is partly let through), and opens at speed: a galloping horse
     // stretches its neck long and low with the nose pushed out in front.
-    const open = 0.3 * clamp((v - 6) / 8, 0, 1);
+    const open = 0.3 * clamp((v - 6) / 8, 0, 1) + p.headOpen * mv;
     const headT = -(neckSum + pitch) * comp - carriage * (1 - comp) + nod * 0.25 + open;
     const head = S.head.step(headT, dt, 3.2, 0.55);
     _e.set(0, yawTarget * 0.1, head, 'YZX');
@@ -469,7 +551,27 @@ export class Locomotion {
         const m = -v * Tsw * 0.55;
         const w2 = w * w, w3 = w2 * w;
         _v.x = (2 * w3 - 3 * w2 + 1) * leg.liftRel.x + (w3 - 2 * w2 + w) * m + (-2 * w3 + 3 * w2) * leg.landRel.x + (w3 - w2) * m;
-        _v.y += p.swingH[leg.key] * sbump(w, leg.fore ? 0.36 : 0.46) * clamp(v / 1.2 + 0.4, 0.4, 1);
+        // Canter and gallop: the hind follows through behind first. Until
+        // w = lag the hoof keeps moving back, starting at the stance speed
+        // (so lift-off is smooth in world space) and easing to rest; then it
+        // swings forward fast and retracts onto its landing spot.
+        const lag = leg.fore ? 0 : p.hindLag * mv;
+        if (lag > 0.005) {
+          // how far back the raised hoof can still be reached from the hip
+          const hy = leg.liftRel.y + p.swingH.H * sbump(lag, 0.46 + 0.2 * lag);
+          const h = leg.pivot[1] - drop - hy;
+          const R = leg.reach * 0.95;
+          const back = leg.pivot[0] - Math.sqrt(Math.max(0.01, R * R - h * h)) - leg.reachBonus;
+          const B = clamp((v * Tsw * lag) / 3, 0, Math.max(0, leg.liftRel.x - back));
+          let x;
+          if (w < lag) x = leg.liftRel.x - B * (1 - (1 - w / lag) ** 3);
+          else {
+            const t = (w - lag) / (1 - lag), t2 = t * t, t3 = t2 * t;
+            x = (2 * t3 - 3 * t2 + 1) * (leg.liftRel.x - B) + (-2 * t3 + 3 * t2) * leg.landRel.x + (t3 - t2) * m * (1 - lag);
+          }
+          _v.x += (x - _v.x) * clamp(lag / 0.1, 0, 1);
+        }
+        _v.y += p.swingH[leg.key] * sbump(w, leg.fore ? 0.36 : 0.46 + 0.2 * lag) * clamp(v / 1.2 + 0.4, 0.4, 1);
         leg.coffinTarget.copy(_v).applyMatrix4(this.root.matrixWorld);
         // hoof pitch: from its lift-off angle to flat at touchdown, with the
         // relative swing flexion blended in through mid-swing
@@ -526,7 +628,7 @@ export class Locomotion {
       const abs = hoofAbs - parentPitch - (a2 + carpus + fetlock);
       setZ(leg.bones[5], softClamp(abs * (1 - blendRel) + relCoffin * blendRel, -1.7, 0.6));
     } else {
-      let hock = st ? (hold ? 0 : 0.14 * p.hockFlex * Math.sin(Math.PI * s) ** 2) : p.hockFlex * sbump(w, 0.46);
+      let hock = st ? (hold ? 0 : 0.14 * p.hockFlex * Math.sin(Math.PI * s) ** 2) : p.hockFlex * sbump(w, 0.46 + 0.25 * p.hindLag * this.mv);
       const [v0, v1, v2, v3] = V;
       // stifle -> coffin for a hock angle (the fetlock as it is)
       const comp = (h) => {

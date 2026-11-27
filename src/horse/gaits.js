@@ -45,6 +45,10 @@ export const GAITS = {
     tailLift: 0.0,
     surge: 0.03,
     surgeHarm: 2,
+    hindLag: 0,
+    rockPivot: 0,
+    headOpen: 0,
+    leadReach: 0,
     stanceShift: { F: -0.08, H: 0.26 },
   },
   trot: {
@@ -71,6 +75,10 @@ export const GAITS = {
     tailLift: 0.25,
     surge: 0.025,
     surgeHarm: 2,
+    hindLag: 0,
+    rockPivot: 0,
+    headOpen: 0,
+    leadReach: 0,
     stanceShift: { F: -0.06, H: 0.2 },
   },
   canter: {
@@ -79,7 +87,7 @@ export const GAITS = {
     duty: { F: 0.46, H: 0.45 },
     dutyFast: { F: 0.34, H: 0.35 },
     phase: { LH: 0.0, RH: 0.13, LF: 0.17, RF: 0.38 },
-    swingH: { F: 0.26, H: 0.16 },
+    swingH: { F: 0.26, H: 0.22 },
     carpusFlex: 1.55,
     fetlockFlex: 1.15,
     fetlockExt: 0.38,
@@ -88,10 +96,10 @@ export const GAITS = {
     breakover: 0.55,
     scap: 0.3,
     bob: 0.035,
-    pitch: 0.075,
+    pitch: 0.12,
     roll: 0.02,
-    nod: 0.16,
-    neckCarriage: -0.28,
+    nod: 0.4,
+    neckCarriage: -0.5,
     lumbar: 0.09,
     bodyDrop: 0.07,
     tailLift: 0.58,
@@ -99,9 +107,26 @@ export const GAITS = {
     surgeHarm: 1,
     // stride phases (from the trailing hind's touchdown) where the rocking
     // pitch and the neck swing are aimed; the springs add ~0.1 of lag, so the
-    // forehand peaks at ~0.7 and the head is lowest at ~0.65, as measured
+    // forehand peaks at ~0.7 and the head is lowest against the neck at
+    // ~0.7, as measured. The neck swings down as the forehand rises, so the
+    // head stays steadier in space than the withers.
     rockPeak: 0.6,
-    nodPeak: 0.56,
+    nodPeak: 0.52,
+    // The trunk rocks about a point 0.34 m behind its centre, over the loins:
+    // in the footage the croup moves about a third as much as the withers, in
+    // opposite phase. Pitch ±7-8 deg, near the published canter range.
+    rockPivot: 0.34,
+    // Share of the hind swing spent following through behind after lift-off:
+    // the footage shows the hinds still extended behind the buttock half way
+    // through their swing, then folding forward fast.
+    hindLag: 0.38,
+    // the neck is carried low and the face opens (nose out), as at liberty
+    // in the footage
+    headOpen: 0.25,
+    // the leading fore and hind land this much further forward, the trailing
+    // pair further back (Back et al. 1997: more protraction in the leading
+    // limbs, more retraction in the trailing ones)
+    leadReach: 0.05,
     stanceShift: { F: 0.07, H: 0.1 },
   },
   gallop: {
@@ -132,6 +157,10 @@ export const GAITS = {
     // highest and head lowest at ~0.8 of the stride
     rockPeak: 0.58,
     nodPeak: 0.5,
+    rockPivot: 0,
+    hindLag: 0.3,
+    headOpen: 0,
+    leadReach: 0.04,
     stanceShift: { F: 0.1, H: 0.18 },
   },
 };
@@ -145,6 +174,7 @@ export const GAIT_DOWN = { trot: 1.9, canter: 4.3, gallop: 8.0 };
 const NUMERIC_KEYS = [
   'carpusFlex', 'fetlockFlex', 'fetlockExt', 'hockFlex', 'coffinFlex', 'breakover', 'scap',
   'bob', 'pitch', 'roll', 'nod', 'neckCarriage', 'lumbar', 'bodyDrop', 'tailLift', 'surge', 'surgeHarm',
+  'hindLag', 'rockPivot', 'headOpen', 'leadReach',
 ];
 
 // Blend two gait parameter sets (phases blend along the shortest circular path).

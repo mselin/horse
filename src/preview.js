@@ -6,6 +6,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { bakeInWorker, Horse } from './horse/Horse.js';
 import { Locomotion } from './horse/Locomotion.js';
+import { GAITS } from './horse/gaits.js';
 import { Hair } from './horse/Hair.js';
 import { MANE_COLORS } from './horse/coat.js';
 import { addFacialHairs } from './horse/FacialHairs.js';
@@ -104,6 +105,11 @@ const facial = params.has('nohair') ? null : addFacialHairs(horse);
 const sunDir = new THREE.Vector3().copy(sun.position).normalize().negate();
 let loco = null;
 if (params.has('gait')) {
+  // ?gp=nod:0.3,nodPeak:0.5 overrides the gait's numeric parameters (tuning)
+  for (const kv of (params.get('gp') || '').split(',').filter(Boolean)) {
+    const [k, val] = kv.split(':');
+    GAITS[params.get('gait')][k] = parseFloat(val);
+  }
   loco = new Locomotion(horse);
   loco.setGait(params.get('gait'));
   if (params.has('speed')) loco.targetSpeed = parseFloat(params.get('speed'));

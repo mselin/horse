@@ -47,6 +47,10 @@ the sculpt changes.
 | C | Camera: orbit / cinematic / side tracking |
 | H | Hide UI |
 
+At canter and gallop the horse leads with the legs on the inside of a turn,
+and the HUD shows which lead it is on. Steer the other way and it changes
+lead in the air, in one stride.
+
 A demo tour cycles through the gaits until you press a key. The panel has
 coat colours, white markings, time of day, mesh detail, a skeleton view and a
 slow-motion slider (1–16×). The motion and the hair are simulated every frame
@@ -131,7 +135,9 @@ camera zooms in to 30 cm.
    - Hooves plant in world space with breakover. Stance length adapts to
      speed, so the legs never have to reach past their length.
    - Swing is planned in the heading frame. The hoof follows through after
-     lift-off, then reaches forward and retracts before landing.
+     lift-off, then reaches forward and retracts before landing. At canter
+     and gallop the hind leg stays extended behind for about a third of its
+     swing before folding forward, as in footage.
    - Two-bone IK uses a soft limit near full extension. The joint curves
      are C2-smooth. In stance the hind leg's stifle and hock open together, as
      the reciprocal apparatus links them in a real horse, so the leg lengthens
@@ -141,15 +147,25 @@ camera zooms in to 30 cm.
      cascades, so motion travels along them with lag and overshoot.
    - The head is stabilised. Breathing locks to the stride at canter and
      gallop, and the belly and flanks jiggle.
+   - At the canter the trunk rocks about ±8° around a point over the loins,
+     so the withers rise and fall three to four times as much as the croup.
+     The neck is carried low with the nose out, and it swings down as the
+     forehand rises, so the head moves less than the withers.
+   - Canter and gallop have a lead. On a turn the horse strikes off on the
+     inside lead, with the outside hind as the first beat. When the turn
+     reverses it makes a flying change: it waits for a moment with all four
+     hooves off the ground, then retimes each leg so the new lead's
+     footfalls start on the next stride. The leading fore reaches further
+     forward than the trailing one.
    - The face moves too: the upper lids blink, in full and half blinks at
      the rate measured in relaxed horses, with an extra blink on large gaze
      shifts, and droop a little at a long rest; the upper lashes ride the
      lid. The eyes make small saccades and lead the head into turns. The
      nostrils flare on each breath in, a little at rest and fully at the
      gallop or while blowing after work.
-   - The canter's footfalls, duty factor, suspension and rocking were
-     measured frame by frame from documentary footage of brumbies and the
-     gait matched to them: see [docs/VIDEO-REFERENCE.md](docs/VIDEO-REFERENCE.md).
+   - The canter's footfalls, duty factor, suspension, rocking, head and
+     neck motion and hind-leg swing were measured frame by frame from
+     documentary footage of brumbies and the gait matched to them: see [docs/VIDEO-REFERENCE.md](docs/VIDEO-REFERENCE.md).
      `node tools/gait-timing.mjs` prints the same measures for the
      procedural gaits.
    - See [docs/MOTION-NOTES.md](docs/MOTION-NOTES.md) for the analysis,
@@ -193,7 +209,7 @@ locomotion, hair and world code stay as they are.
 | Job | What it checks |
 | --- | --- |
 | Site checks | HTML against the standard, with html-validate |
-| Build and browser smoke test | `npm run test:motion`, then `npm run build` and `npm run test:smoke`. **The motion check** drives the locomotion headless through every gait, turns and a halt, and fails on reach error, planted-hoof slip, trunk acceleration spikes, NaNs, or a horse that doesn't settle. **The smoke test** loads the built site in headless Chromium with software WebGL, bakes the horse, canters, renders a frame, and fails on any page or console error |
+| Build and browser smoke test | `npm run test:motion`, then `npm run build` and `npm run test:smoke`. **The motion check** drives the locomotion headless through every gait, turns and a halt, and fails on reach error, planted-hoof slip, trunk acceleration spikes, NaNs, a horse that doesn't settle, or a canter on a left turn that isn't on the left lead. **The smoke test** loads the built site in headless Chromium with software WebGL, bakes the horse, canters, renders a frame, and fails on any page or console error |
 | All checks passed | Succeeds only if every job above did. This is the check that merging requires |
 | Publish the horse | On `main` only, after all checks pass: deploys `dist/` with GitHub Pages to https://mselin.github.io/horse/ |
 
@@ -204,8 +220,10 @@ straight to `main`, force-pushing and deleting the branch are blocked.
 `preview.html` is a development page for inspecting the sculpt
 (`?view=side|front|back|top|q34|head|eyeclose|muzzle|ear…`, `?gait=gallop&t=2`,
 `?blink=0..1` to hold the lids part-closed, `?flare=0..1` to hold the nostrils
-flared). With `?gait=…`, `window.__step(dt)` advances the animation one frame
-and returns the image and each leg's stance, for comparing against footage.
+flared, `?nohair` to leave out mane and tail). With `?gait=…`,
+`window.__step(dt)` advances the animation one frame and returns the image and
+each leg's stance, for comparing against footage, and `?gp=nod:0.4,pitch:0.1`
+overrides that gait's numeric parameters while tuning.
 
 ## Licence
 

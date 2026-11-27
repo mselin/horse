@@ -7,13 +7,14 @@ reference material to compare it against.
 
 | Layer | File | What it does |
 | --- | --- | --- |
-| Gait data | `src/horse/gaits.js` | For each gait: footfall phase of each leg, duty factor at the slow and fast end of the gait's speed range, stride frequency against speed, swing height, joint-flexion amplitudes, trunk and neck amplitudes, surge, and for canter and gallop the stride phase of the rocking. Values from the literature in `RESOURCES.md`; canter timing measured from footage (`VIDEO-REFERENCE.md`) |
+| Gait data | `src/horse/gaits.js` | For each gait: footfall phase of each leg, duty factor at the slow and fast end of the gait's speed range, stride frequency against speed, swing height, joint-flexion amplitudes, trunk and neck amplitudes, surge, and for canter and gallop the stride phase of the rocking. Values from the literature in `RESOURCES.md`; canter timing, rocking, neck motion and hind swing measured from footage (`VIDEO-REFERENCE.md`) |
 | Leg timing | `Locomotion.js` | Each leg runs its own cycle. The current gait sets where each leg *should* be, and a leg only catches up or waits while it is in the air, so gaits change within about a stride, leg by leg, instead of cross-fading two footfall patterns |
+| Leads | `Locomotion.js` | Canter and gallop are defined for the right lead; on the left lead each leg follows its mirror image's timing. The lead is picked from the turn as the horse strikes off, and the stride phase is anchored on the outside hind so it makes the first beat. A turn against the lead for half a second asks for a flying change: it waits for a suspension in which every leg can be retimed within limits, then sets each leg's swing rate so that it lands exactly on the new pattern. The leading fore lands 5 cm further forward and the trailing fore 5 cm further back |
 | Stance | `Locomotion.js` | The hoof is planted in world space; breakover pivots it about the toe at the end of stance. Stance length adapts to speed so the stance never needs more reach than the leg has (stance time shortens with speed, swing time stays about constant, as in real horses) |
-| Swing | `Locomotion.js` | Planned in the horse's heading frame, from lift-off to the planned landing. The fore-aft path is a cubic Hermite curve: the hoof follows through backward, swings forward, overshoots a little and **retracts** onto the landing spot. Lift is a C2-smooth bump |
+| Swing | `Locomotion.js` | Planned in the horse's heading frame, from lift-off to the planned landing. The fore-aft path is a cubic Hermite curve: the hoof follows through backward, swings forward, overshoots a little and **retracts** onto the landing spot. At canter and gallop the hind first keeps moving back for about a third of its swing, starting at the stance speed (so lift-off is smooth) and easing to rest, as far as the leg can reach with the hoof raised; then it swings forward fast. Lift is a C2-smooth bump |
 | Legs | `Locomotion.js` | Planar two-bone IK (shoulder–elbow, hip–stifle) with the distal joints (carpus, hock, fetlock, coffin) folding on C2-smooth curves. Near full extension the reach is softened so a leg eases straight instead of snapping |
-| Trunk | `Locomotion.js` | The loads on the legs drive second-order springs for bounce, pitch, roll and sway, so the trunk behaves like a sprung mass with lag and overshoot. At canter and gallop the pitch is locked to the stride instead: the forehand is lowest as the trailing hind lands and highest late in the leading fore's stance, as measured from footage. A small forward surge happens within each stride, plus lumbosacral flexion and lateral bending in turns |
-| Neck and head | `Locomotion.js` | Five neck segments form a cascade of springs: each follows the one before with a little more lag, so a wave travels down the neck. The neck reacts to the trunk's vertical acceleration. The head is stabilised: it counter-rotates most of the neck and trunk pitch |
+| Trunk | `Locomotion.js` | The loads on the legs drive second-order springs for bounce, pitch, roll and sway, so the trunk behaves like a sprung mass with lag and overshoot. At canter and gallop the pitch is locked to the stride instead: the forehand is lowest as the trailing hind lands and highest late in the leading fore's stance, as measured from footage. The canter rocks ±8° about a point 0.34 m behind the trunk's centre, so the croup moves about a third as much as the withers. A small forward surge happens within each stride, plus lumbosacral flexion and lateral bending in turns |
+| Neck and head | `Locomotion.js` | Five neck segments form a cascade of springs: each follows the one before with a little more lag, so a wave travels down the neck. The neck reacts to the trunk's vertical acceleration. The head is stabilised: it counter-rotates most of the neck and trunk pitch. At the canter the neck is carried low with the face opened, and it swings down as the forehand rises |
 | Tail | `Locomotion.js` | A cascade of springs in pitch and yaw: carried higher with speed, kicked by trunk bounce, swaying with the walk, swishing at rest |
 | Soft tissue | `coat.js` (vertex shader) | The belly and flanks lag the trunk's vertical motion through a fast underdamped spring |
 | Breathing | `Locomotion.js` | Free at rest and at slow gaits; at canter and gallop, locked to one breath per stride |
@@ -66,13 +67,14 @@ Causes found and fixed:
 | Duty factor | ≈ 0.46 | 0.24–0.26 (app speed 6.8 m/s) | 0.39–0.41 (app speed 5.0 m/s) |
 | All hooves off the ground | ≈ 0.15 of the stride | 0.39 | 0.22 |
 | Forehand highest | ≈ 0.7 of the stride | ≈ 0.2 | 0.72 |
-| Head lowest (relative to the withers) | ≈ 0.7 | ≈ 0.25 | ≈ 0.7 |
+| Head lowest (relative to the withers) | ≈ 0.7 | ≈ 0.25 | 0.83 (first reported as ≈ 0.7: a measurement bug); 0.68 after the second canter pass |
+| Trunk pitch | — (published pelvic pitch range 15–16°) | ±4.9° | ±7.8° after the second canter pass |
 
 | Gallop (13.5 m/s) | Footage | Before | After |
 | --- | --- | --- | --- |
 | Stride frequency | 2.27 Hz | 2.25 Hz | 2.25 Hz |
 | All hooves off the ground | ≈ 0.15–0.25 | 0.35 | 0.32 |
-| Forehand highest, head lowest | ≈ 0.8, ≈ 0.8 | 0.68, 0.78 | 0.78, 0.83 |
+| Forehand highest, head lowest against the neck | ≈ 0.8, ≈ 0.8 | 0.68, — | 0.78, 0.6–0.7 (the head swings a third as much as in the footage; the 0.83 first reported came from a measurement bug) |
 | Head carriage | neck long and low, nose out | face near vertical | neck long and low, nose out |
 
 ## Reference material
@@ -130,13 +132,15 @@ could not be fetched from the build environment.
 - ✓ Duty factors fall with speed within each gait; the legs' stance reach no longer cuts them far below the target.
 - ✓ Gallop stride frequency is about 2.2–2.3 Hz.
 - ✓ Stance shortens with speed while swing stays about constant.
-- ~ Gait changes happen within about a stride, leg by leg. Nothing yet forces a canter to start from the outside hind.
+- ✓ Gait changes happen within about a stride, leg by leg. Striking off into canter, the outside hind makes the first canter beat; one or two trot beats may come first, depending on where in the trot stride the change falls.
 - ✗ Speed changes are not yet quantised to the stride cycle, as RDR2 does.
 
 **Head and neck**
 - ✓ The neck runs as a spring cascade with a stabilised head.
 - ✓ The head nods once per stride at canter and gallop.
-- ~ Nod amplitude per gait is tuned by eye; the references give no numbers in centimetres.
+- ~ At the canter the neck is carried low with the nose out and swings down as the forehand rises, so the head moves less in space than the withers. The head is lowest against the withers at 0.68 (footage ≈ 0.7). By silhouette it still swings less against the neck than in the footage (4.2% of body length against 9.1%).
+- ~ At the gallop the head swings against the neck only about a third as much as in the gallop footage.
+- ~ Nod amplitude at the walk, trot and gallop is tuned by eye; the references give no numbers in centimetres.
 - ✓ The trot nod is symmetric. An uneven nod reads as lameness.
 
 **Trunk and back**
@@ -146,6 +150,7 @@ could not be fetched from the build environment.
 - ✓ At a medium walk (1.8 m/s, 0.94 strides/s) the hind hoof over-tracks the fore print by ≈ 12 cm; a slow walk lands a little short, as real horses do.
 - ✓ In stance the hind leg's stifle and hock open together (the reciprocal apparatus), so the leg lengthens at the start and end of a long stance instead of the hoof falling short of its planted spot.
 - ✓ Pitch dominates at canter, in the measured phase: forehand highest late in the leading fore's stance, lowest as the trailing hind lands, with the head counter-swinging.
+- ✓ The canter rocks about the hindquarters: ±8° (published pelvic pitch range at the canter: 15–16°), the withers moving three to four times as much as the croup, as in footage.
 - ✓ Most flexion at the gallop is lumbosacral.
 - ✓ Breathing locks to the stride at canter and gallop.
 
@@ -154,6 +159,7 @@ could not be fetched from the build environment.
 - ✓ Breakover pivots about the toe.
 - ✓ The fetlock sinks under load.
 - ✓ The carpus folds in swing, then the leg reaches forward and retracts before landing.
+- ✓ At canter and gallop the hind stays extended behind for about a third of its swing, then folds forward fast.
 - ~ The pastern does not yet approach horizontal at the gallop.
 
 **Tail**
@@ -175,7 +181,8 @@ could not be fetched from the build environment.
 - ✓ The horse leans into turns with tan θ ≈ v·ω/g.
 - ✓ The neck bends into the turn.
 - ✗ No pivot about the forefeet when turning on the spot.
-- ✗ No inside lead in canter turns.
+- ✓ Canter and gallop on the inside lead in turns, with flying changes in one suspension.
+- ~ The leading fore reaches further forward than the trailing one; the hinds are at their reach limit at the canter, so the same shift has no room there.
 
 **Known gaps**
 - Leg reach still caps the duty factor at the fast end of the canter and gallop a little below the published values. The rig's proportions are not the cause. Its hip joint height (1.27 m) and segment lengths agree with published hindlimb measurements: hindlimb length / hip-socket height = 108%, against 105% in a worked reference. What remains is the simplified forelimb (a straight column in stance) and the absence of a moving pelvis in the reach model.

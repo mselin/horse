@@ -46,7 +46,7 @@ for (const [gait, speed] of runs) {
       if (!s && prev[k]) ev[names[k]].push(['off', i]);
     });
     if (!st.some(Boolean)) air++;
-    byName.head.updateMatrixWorld(true);
+    byName.head.updateWorldMatrix(true, false); // parents first: the neck moved this step
     nose.set(0.3, -0.45, 0).applyMatrix4(byName.head.matrixWorld);
     byName.neck0.getWorldPosition(withers);
     rows.push([i, loco.dbg.pitch, nose.y - withers.y]);
