@@ -146,7 +146,7 @@ export const GAITS = {
     bob: 0.05,
     pitch: 0.055,
     roll: 0.015,
-    nod: 0.2,
+    nod: 0.45,
     neckCarriage: -0.62,
     lumbar: 0.13,
     bodyDrop: 0.12,
@@ -154,9 +154,13 @@ export const GAITS = {
     surge: 0.045,
     surgeHarm: 1,
     // measured from a side-on gallop (real time, 2.27 strides/s): forehand
-    // highest and head lowest at ~0.8 of the stride
+    // highest and head lowest at ~0.8 of the stride. The neck swings down as
+    // the forehand rises, about as far as at the canter: the head then swings
+    // against the withers by 13% of body length, as in the footage. (At nod
+    // 0.2 the trunk's pitch lifted the head as far as the neck lowered it,
+    // and the head swung only 4%.)
     rockPeak: 0.58,
-    nodPeak: 0.5,
+    nodPeak: 0.6,
     rockPivot: 0,
     hindLag: 0.3,
     headOpen: 0,
