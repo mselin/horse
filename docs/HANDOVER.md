@@ -18,7 +18,7 @@ continue
 2. Baseline: silhouette head-vs-withers swing of the footage (`seg03`, desert gallop) and of ours at 13.5 m/s, plus `npm run gait-timing -- gallop 13.5`. Check: numbers under Established. **In progress.**
 3. Tune the gallop neck (`nod`, `nodPeak`, `headOpen`, neck dynamics if needed) so the head swings about 10–13% of body length against the withers, lowest at 0.7–0.9, forehand still highest at ≈0.8. Check: silhouette numbers, gait-timing, `npm run test:motion` passes. **Done: `nod` 0.45, `nodPeak` 0.6.**
 4. Look at phase-aligned pairs against the footage. Check: images viewed, differences noted. **Done.**
-5. Docs (`VIDEO-REFERENCE.md`, `MOTION-NOTES.md`, this file), push, PR. Check: PR open, All checks passed green. **In progress.**
+5. Docs (`VIDEO-REFERENCE.md`, `MOTION-NOTES.md`, this file), push, PR. Check: PR open, All checks passed green. **Done: PR #11, green at ea6c2e2.**
 
 ## Established
 
@@ -62,7 +62,8 @@ continue
 - `npm run test:motion`: passed (gallop IK max 12.8 cm, trunk accel max 31.5 m/s², left lead on a left turn).
 - Nose vertical acceleration through canter → gallop → canter (scratch `nosejerk.mjs`): max 22.6 m/s² after, 22.5 before.
 - Phase-aligned pairs against the footage viewed (scratch `cmp/g45-pairs.jpg`): neck raised in the first third, lowest through 0.67–0.83, as in the footage.
-- Unverified: CI on the PR; the live app after deploy.
+- PR #11 at ea6c2e2: Site checks, Build and browser smoke test, All checks passed: success.
+- Unverified: the live app after merge and deploy.
 
 ## Dead ends
 
