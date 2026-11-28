@@ -84,7 +84,8 @@ nose had been pulled into it. Footage: 5 strides; ours: 3 strides at 5.0 m/s.
 | Croup, rise and fall (% of body length) | 3.9 | 3.1 | 3.1 |
 | Trunk pitch (skeleton) | — (published pelvic pitch range at the canter: 15–16°) | ±4.9° | ±7.8° |
 | Head lowest against the withers (skeleton) | ≈ 0.7 (silhouette) | 0.83, ±4 cm | 0.68, ±18 cm |
-| Head against the neck, silhouette (% of body length, lowest at) | 9.1 at 0.7 | 2.2 at 0.8 | 4.2 at 0.9 |
+| Head against the neck, silhouette (% of body length, lowest at) | 9.1 at 0.7 | 2.2 at 0.8 | 7.0 at 0.6–0.9 |
+| Head against the neck, silhouette, fitted to the stride (± % of body length, highest at) | ±3.2 at 0.30 | — | ±3.5 at 0.26 |
 | Neck and head | neck low, nose well out in front | neck upright, face near vertical | neck low, nose out |
 | Hind hooves at 0.7 | extended far behind the buttock, soles up | already under the hip | extended behind the buttock |
 | Leading fore | lands well ahead of the other fore | lands level with it | lands 10 cm ahead |
@@ -92,6 +93,15 @@ nose had been pulled into it. Footage: 5 strides; ours: 3 strides at 5.0 m/s.
 The silhouette's head window covers the whole head, so its reading changes
 with the angle the face is carried at as well as with its height. The
 skeleton figures (`npm run gait-timing`) say where the head really is.
+
+The head-against-the-neck figure for ours was first given here as 4.2. That
+does not reproduce: measured again on the committed code, with the same
+capture settings, it reads 7.0. The footage's larger peak-to-peak comes mostly
+from noise: there are only five strides, and they differ a lot from one another.
+Fitted with a sine at the stride frequency, all frames together, the head
+swings ±3.2% of body length in the footage and ±3.5% in ours, highest at 0.30
+and 0.26. So the canter head swing already matches the footage, and no
+parameter was changed for it.
 
 Changes:
 
