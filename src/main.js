@@ -246,9 +246,11 @@ function updateCamera(dt) {
 const GAIT_SPEEDS = [0, 1.8, 3.8, 5.0, 13.5];
 const GAIT_LABEL = ['Standing', 'Walk', 'Trot', 'Canter', 'Gallop'];
 let gaitIndex = 0;
+const gaitShown = { gait: GAIT_LABEL[0] }; // what the panel's Gait dropdown shows
 const keys = new Set();
 function setGaitIndex(i) {
   gaitIndex = Math.max(0, Math.min(4, i));
+  gaitShown.gait = GAIT_LABEL[gaitIndex];
   loco.forcedGait = null;
   loco.targetSpeed = GAIT_SPEEDS[gaitIndex];
 }
@@ -307,9 +309,11 @@ function updateDemo(dt) {
 const gui = new GUI({ title: 'Horse' });
 const fMove = gui.addFolder('Movement');
 fMove.add(state, 'demo').name('Demo tour');
+// listen(): keys, the demo tour and ?gait= change the gait too
 fMove
-  .add({ gait: 'Standing' }, 'gait', GAIT_LABEL)
+  .add(gaitShown, 'gait', GAIT_LABEL)
   .name('Gait')
+  .listen()
   .onChange((v) => {
     state.demo = false;
     setGaitIndex(GAIT_LABEL.indexOf(v));
