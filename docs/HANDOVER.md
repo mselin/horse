@@ -8,16 +8,17 @@ and "Known gaps" at the end of `docs/MOTION-NOTES.md`.
 
 ## Task
 
-Add to there to fix the gait dropdown
+continue
 
-(Taken as: fix the side panel's Gait dropdown, which always shows "Standing", in the next PR, together with the handover update after #11.)
+(Taken as: #12 is merged, so start the next candidate. The first, gallop trunk pitch, has no usable footage (see Dead ends), so: the canter head's swing against the neck by silhouette, 4.2% of body length against the footage's 9.1%.)
 
 ## Plan
 
-1. Branch `gait-dropdown` from `main` c93f4fb, record task and plan. Check: this file committed on the branch. **Done.**
-2. Smoke test: assert the Gait dropdown shows the gait the page runs (`?gait=3` → "Canter"). Check: `npm run test:smoke` fails on `main`'s code. **Done: fails with "Gait dropdown shows Standing, expected Canter".**
-3. Fix: bind the dropdown to an object that `setGaitIndex` keeps current, and let lil-gui `listen()` for changes. Check: smoke test passes; keys, demo tour and the dropdown itself all update it. **Done.**
-4. Docs, push, PR. Check: PR open, All checks passed green; merge when the owner says "merge it". **PR #12 open; waiting for checks.**
+1. Branch `canter-head` from `main` f75146b, record task and plan. Check: this file committed on the branch. **Done.**
+2. Baseline: silhouette curves (head, withers window, head minus withers by stride phase) of the footage (`seg04` = `wha-02m25s…`, 0.6–5.4 s, period 25, contact 21.5) and of ours at 5.0 m/s, plus `npm run gait-timing -- canter 5 canter 7.5`. Check: numbers under Established. **Not started.**
+3. Find what makes the gap (neck swing amplitude, where along the neck it bends, face angle) by trying `?gp=` overrides, then change the canter parameters. Check: silhouette head-vs-withers swing near 9%, lowest ≈0.7; withers and croup rise and fall unchanged (12.5%, 3.1%); `npm run test:motion` passes; gallop unchanged. **Not started.**
+4. Phase-aligned pairs against the footage. Check: images viewed, differences noted. **Not started.**
+5. Docs (`VIDEO-REFERENCE.md`, `MOTION-NOTES.md`, this file), push, PR. Check: PR open, All checks passed green; merge when the owner says "merge it". **Not started.**
 
 ## Established
 
@@ -50,20 +51,17 @@ Add to there to fix the gait dropdown
   - #9 canter rocking about the hindquarters, low neck, hind follow-through, leads and flying changes; gait-timing head-position fix
   - #10 handover docs
   - #11 gallop neck swings as far as in the footage (`nod` 0.45, `nodPeak` 0.6)
+  - #12 Gait dropdown follows the gait; smoke test checks it
 
 ## Changes
 
-- `horse`, branch `gait-dropdown` (from `main` c93f4fb): Gait dropdown follows the gait (src/main.js); smoke test fails if the dropdown does not show the canter it runs (tests/smoke.mjs); README checks table says so; this file. PR: https://github.com/mselin/horse/pull/12.
-- Merged before this task: #11 `gallop-neck` (merge commit c93f4fb): gallop `nod` 0.2 → 0.45, `nodPeak` 0.5 → 0.6 (src/horse/gaits.js:149, :163), with the "Gallop, second pass: neck swing" section in `docs/VIDEO-REFERENCE.md`.
+- `horse`, branch `canter-head` (from `main` f75146b): handover only so far.
+- Merged before this task: #12 `gait-dropdown` (merge commit f75146b): the Gait dropdown follows keys, the demo tour and `?gait=`; the smoke test checks it.
 
 ## Verification
 
-- `main` at c93f4fb (#11): Site checks, Build and browser smoke test, All checks passed and Publish the horse succeeded; the Pages deployment of c93f4fb is "success".
-- Live site (headless Chromium, scratch `live-check.cjs`): served bundle has `rockPeak:.58,nodPeak:.6` and `nod:.45`; gallop at 13.5 m/s runs with no page or console errors, head low at 0.88, ±18 cm, 2.25 strides/s, matching `npm run gait-timing` before the merge.
-- The same run showed the bug this task fixes: the panel's Gait dropdown read "Standing" while the horse galloped.
-- `npm run build && npm run test:smoke`: on `main`'s `src/main.js` fails ("Gait dropdown shows Standing, expected Canter"); with the fix passes (dropdown "Canter").
-- Built app driven in headless Chromium (scratch `dropdown-check.cjs` against `vite preview`): demo tour at load shows Walk; keys 5, ArrowDown, Space, W show Gallop, Canter, Standing, Walk; choosing Trot and Gallop from the dropdown sets target speed 3.8 and 13.5 m/s; no page or console errors.
-- Not yet known: the checks on PR #12 (`gh api repos/mselin/horse/commits/<head>/check-runs`).
+- `main` at f75146b (#12): Site checks, Build and browser smoke test, All checks passed and Publish the horse succeeded. Live site (bundle `main-CgtQhqpP.js`, same as the local build): demo tour shows Walk at load; keys 5, ArrowDown, Space, W and choosing Trot and Gallop from the dropdown all keep the dropdown and target speed in step; no page or console errors.
+- Nothing run yet for this task.
 
 ## Dead ends
 
@@ -77,15 +75,15 @@ Add to there to fix the gait dropdown
 - "Lower the hip joint": the hip height (1.27 m) and segment lengths agree with published hindlimb data; the real cause was the hock being fixed in stance.
 - Vite's dev server hot-reloads open pages on every edit, which kills Playwright captures; capture from a server with `hmr: false` and file watching off.
 - Journal hosts (pmc.ncbi.nlm.nih.gov, research-portal.uu.nl, pub.epsilon.slu.se) cannot be fetched from this environment; papers are cited from search summaries and marked as such.
+- Gallop trunk pitch: the only side-on gallop is `seg03` (desert). `wha-45m36s…` (snow gums) is mostly hidden by branches and 3/4; `wha-46m32s…` (alpine plain) is a distant herd, horses overlapping. Neither separates trunk pitch from neck motion.
 - The footage-analysis scripts (colour tracking, stride period, silhouette heights, phase-aligned pairs) lived in a session scratchpad and are not in the repo; recreate them if a measurement pass needs them.
 
 ## Next
 
-Wait for All checks passed on PR #12 (`gait-dropdown`) and merge (merge commit) when the owner says "merge it"; then confirm `main`'s checks and Publish the horse.
+Plan step 2: baseline the canter silhouette. Scratch tools (this session's scratchpad): `tools/headbob.py`, `tools/capture-gait.cjs` (needs the no-reload server `vite.nohmr.mjs` on port 5174), and `tools/gsil.sh` as the model for a canter version (25 frames a stride, dt 0.02312 at 5.0 m/s, encode with `-vf hflip`).
 
 Candidates after this task, from the roadmap:
 - Gallop trunk pitch: the footage's withers window rises about twice as much as ours (10.7% against 5.2%); needs a cleaner side-on gallop to separate trunk pitch from neck motion.
-- Canter head swing against the neck by silhouette (4.2% against 9.1%).
 - Quantise speed changes to the stride cycle.
 - Pastern approaching horizontal at the gallop.
 - Turn on the forehand (pivot about the forefeet) when turning on the spot.
