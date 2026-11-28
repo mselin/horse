@@ -138,7 +138,7 @@ could not be fetched from the build environment.
 **Head and neck**
 - ✓ The neck runs as a spring cascade with a stabilised head.
 - ✓ The head nods once per stride at canter and gallop.
-- ~ At the canter the neck is carried low with the nose out and swings down as the forehand rises, so the head moves less in space than the withers. The head is lowest against the withers at 0.68 (footage ≈ 0.7). By silhouette it still swings less against the neck than in the footage (4.2% of body length against 9.1%).
+- ✓ At the canter the neck is carried low with the nose out and swings down as the forehand rises, so the head moves less in space than the withers. The head is lowest against the withers at 0.68 (footage ≈ 0.7). By silhouette it swings against the neck as far as in the footage: ±3.5% of body length over the stride against ±3.2%.
 - ✓ At the gallop the head swings against the neck as much as in the gallop footage (13.1% of body length against 12.6% by silhouette), lowest at 0.7–0.9.
 - ~ Nod amplitude at the walk and trot is tuned by eye; the references give no numbers in centimetres.
 - ✓ The trot nod is symmetric. An uneven nod reads as lameness.
